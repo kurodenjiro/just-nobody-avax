@@ -109,7 +109,7 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                             <div className="text-nobody-mint font-bold animate-pulse">[ ⚙️ GENERATING CRYPTO ASSETS... ]</div>
                             <ul className="text-xs space-y-2 text-gray-400">
                                 <li className="flex items-center justify-between">
-                                    <span>- Creating Solana Keypair...</span>
+                                    <span>- Creating Avalanche Keypair...</span>
                                     <span className={progress > 30 ? "text-nobody-mint" : "text-gray-600"}>{progress > 30 ? "[ DONE ]" : "..."}</span>
                                 </li>
                                 <li className="flex items-center justify-between">

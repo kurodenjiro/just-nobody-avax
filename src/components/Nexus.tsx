@@ -6,7 +6,7 @@ interface StatusIndicatorProps {
     showConfig: () => void;
 }
 
-export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({ children, isOnline, peerCount, showConfig }) => {
+export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({ children, showConfig }) => {
     return (
         <div className="h-screen w-screen bg-nobody-dark overflow-hidden flex flex-col relative font-sans selection:bg-nobody-violet selection:text-white">
             {/* Status Bar Title Removed (Moved to Composer) */}

@@ -251,7 +251,7 @@ impl MeshNetwork {
         }
 
         if let Some(fee) = &intent.relay_fee {
-            if !fee.contains("SOL") && !fee.contains("NEAR") {
+            if !fee.contains("AVAX") {
                  println!("⚠️  Warning: Unknown fee format: {}", fee);
                  // We don't fail validation here for now, just warn
             }

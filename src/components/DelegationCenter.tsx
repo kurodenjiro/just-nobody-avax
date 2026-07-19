@@ -19,13 +19,13 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
         // 1. Generating Ephemeral Keypair
         setTimeout(() => setProgress(30), 500);
 
-        // 2. Initializing MagicBlock
+        // 2. Initializing Instant Session
         setTimeout(() => setProgress(60), 1200);
 
         // 3. Signing (Real backend call)
         setTimeout(async () => {
             try {
-                await invoke("enable_magicblock_trading");
+                await invoke("enable_instant_session");
                 setProgress(100);
                 setTimeout(onComplete, 1000); // Wait a bit then close
             } catch (e) {
@@ -52,7 +52,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
                 <div className="bg-gray-900 mx-1 mt-1 p-2 border-b border-gray-700 flex justify-between items-center text-xs tracking-wider">
                     <span className="text-white font-bold">[ 🛡️ DELEGATION CENTER ]</span>
                     <span className="text-gray-500">[ 👤 IDENTITY: CLUELESS FOX ]</span>
-                    <span className="text-nobody-mint">[ ⚡ ENGINE: MAGICBLOCK ]</span>
+                    <span className="text-nobody-mint">[ ⚡ ENGINE: INSTANT SESSION ]</span>
                 </div>
 
                 <div className="p-8 space-y-6">
@@ -61,7 +61,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
                     <div className="space-y-2">
                         <div className="text-nobody-mint font-bold text-xs tracking-widest">[ 🗝️ AGENT AUTHORITY SETUP ]</div>
                         <div className="text-gray-400 text-xs leading-relaxed border-l-2 border-gray-700 pl-3">
-                            You are about to authorize your AI Agent to negotiate and sign transactions on your behalf using an Ephemeral Rollup.
+                            You are about to authorize your AI Agent to negotiate and sign transactions on your behalf using an Instant Session key.
                         </div>
                     </div>
 
@@ -74,7 +74,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
                         <div className="grid grid-cols-2 gap-4 text-xs">
                             <div className="bg-black/30 p-3 border border-gray-800 flex justify-between items-center text-gray-400">
                                 <span>- Max Spending Limit:</span>
-                                <span className="text-white font-bold">[ 5.00_______ ] SOL</span>
+                                <span className="text-white font-bold">[ 5.00_______ ] AVAX</span>
                             </div>
                             <div className="bg-black/30 p-3 border border-gray-800 flex justify-between items-center text-gray-400">
                                 <span>- Session Duration:</span>
@@ -84,7 +84,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
 
                         <div className="bg-black/30 p-3 border border-gray-800 text-xs flex justify-between items-center text-gray-400">
                             <span>- Allowed Protocols:</span>
-                            <span className="text-nobody-mint font-bold">[ MagicBlock, SilentSwap, Starpay ]</span>
+                            <span className="text-nobody-mint font-bold">[ Instant Session, Private Swap, Starpay ]</span>
                         </div>
                     </div>
 
@@ -98,7 +98,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-nobody-mint">[X]</span>
-                                <span>Require Master Pass for transactions {">"} 1.0 SOL.</span>
+                                <span>Require Master Pass for transactions {">"} 1.0 AVAX.</span>
                             </div>
                         </div>
                     </div>
@@ -115,7 +115,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
                                 <span className={progress >= 30 ? "text-nobody-mint" : "text-gray-600"}>{progress >= 30 ? "[ DONE ]" : "..."}</span>
                             </li>
                             <li className="flex justify-between">
-                                <span>- Initializing MagicBlock Session...</span>
+                                <span>- Initializing Instant Session...</span>
                                 <span className={progress >= 60 ? "text-nobody-mint" : "text-gray-600"}>{progress >= 60 ? "[ READY ]" : "..."}</span>
                             </li>
                             <li className="flex justify-between">

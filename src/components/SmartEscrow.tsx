@@ -1,32 +1,56 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { invoke } from "@tauri-apps/api/core";
 
 interface SmartEscrowProps {
     visible: boolean;
+    escrowId: number | null;
     onClose: () => void;
     onRelease?: () => void;
 }
 
-export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, onClose, onRelease }) => {
+export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onClose, onRelease }) => {
     const [released, setReleased] = useState(false);
+    const [releasing, setReleasing] = useState(false);
+    const [finality, setFinality] = useState<"pending" | "confirmed">("pending");
 
     useEffect(() => {
         if (visible) {
             setReleased(false);
+            setReleasing(false);
+            setFinality("pending");
+
+            if (escrowId != null) {
+                invoke("get_escrow_status", { escrowId })
+                    .then(() => setFinality("confirmed"))
+                    .catch((e) => {
+                        console.error("Failed to fetch escrow status:", e);
+                        setFinality("pending");
+                    });
+            }
         }
-    }, [visible]);
+    }, [visible, escrowId]);
 
-    const handleRelease = () => {
-        setReleased(true);
-
-        // Broadcast settlement confirmation
-        if (onRelease) {
-            onRelease();
+    const handleRelease = async () => {
+        if (escrowId == null) {
+            alert("No on-chain escrow is associated with this deal.");
+            return;
         }
 
-        setTimeout(() => {
-            onClose();
-        }, 2000);
+        setReleasing(true);
+        try {
+            await invoke("release_escrow", { escrowId });
+            setReleased(true);
+            onRelease?.();
+            setTimeout(() => {
+                onClose();
+            }, 2000);
+        } catch (e) {
+            console.error("On-chain release failed:", e);
+            alert("On-chain release failed: " + e);
+        } finally {
+            setReleasing(false);
+        }
     };
 
     if (!visible) return null;
@@ -53,7 +77,7 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, onClose, onRe
                         <div className="w-24 h-24 border-2 border-yellow-500 rounded-full flex items-center justify-center text-3xl mb-4 shadow-[0_0_20px_rgba(234,179,8,0.2)] bg-black">
                             💰
                         </div>
-                        <div className="text-white font-bold">13.5 SOL</div>
+                        <div className="text-white font-bold">13.5 AVAX</div>
                         <div className="text-xs text-gray-500 sm:mt-1">
                             {released ? "RELEASED ✓" : "ZK-VAULT LOCKED"}
                         </div>
@@ -89,8 +113,10 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, onClose, onRe
                 {/* Status Items */}
                 <div className="grid grid-cols-2 gap-4 mb-8">
                     <div className="bg-black/50 p-3 border border-gray-800 flex justify-between items-center">
-                        <span className="text-gray-500 text-xs">Solana Finality</span>
-                        <span className="text-green-500 text-xs font-bold">[CONFIRMED]</span>
+                        <span className="text-gray-500 text-xs">Avalanche Finality</span>
+                        <span className={`text-xs font-bold ${finality === "confirmed" ? "text-green-500" : "text-gray-500"}`}>
+                            {finality === "confirmed" ? "[CONFIRMED]" : "[PENDING]"}
+                        </span>
                     </div>
                     <div className="bg-black/50 p-3 border border-gray-800 flex justify-between items-center">
                         <span className="text-gray-500 text-xs">Mesh Signatures</span>
@@ -100,13 +126,13 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, onClose, onRe
 
                 <button
                     onClick={handleRelease}
-                    disabled={released}
+                    disabled={released || releasing || escrowId == null}
                     className={`w-full font-bold py-3 uppercase tracking-widest transition-colors shadow-lg ${released
                         ? "bg-green-500 text-white cursor-default"
-                        : "bg-yellow-500 text-black hover:bg-white"
+                        : "bg-yellow-500 text-black hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                         }`}
                 >
-                    {released ? "✓ FUNDS RELEASED" : "RELEASE FUNDS"}
+                    {released ? "✓ FUNDS RELEASED" : releasing ? "RELEASING..." : "RELEASE FUNDS"}
                 </button>
 
             </div>

@@ -11,7 +11,7 @@ interface ProviderDashboardProps {
 export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, onClose, onCreateService }) => {
     const [isRelaying, setIsRelaying] = useState(false);
 
-    const [logs, setLogs] = useState<string[]>([]);
+    const [logs] = useState<string[]>([]);
 
     useEffect(() => {
         // Real logs handled elsewhere
@@ -33,7 +33,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
                     <span className="text-gray-500 text-xs">[ 👤 ID: Nobody_99 ]</span>
                 </div>
                 <div className="text-nobody-violet font-bold bg-nobody-violet/10 px-3 py-1 border border-nobody-violet/20">
-                    [ 🏦 LIQUIDITY: 500 SOL ]
+                    [ 🏦 LIQUIDITY: 500 AVAX ]
                 </div>
             </div>
 
@@ -46,7 +46,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
                     <DashboardBox title="ACTIVE LISTINGS">
                         <div className="space-y-2 pt-2">
                             <ListingItem label="1. [📦] 120x ESP32" price="$9.5" />
-                            <ListingItem label="2. [🎨] Fox Trait NFT" price="15 SOL" />
+                            <ListingItem label="2. [🎨] Fox Trait NFT" price="15 AVAX" />
                             <ListingItem label="3. [⚡] bandwidth_relay" price="0.1/kb" />
 
                             <button
@@ -68,7 +68,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
                         <div className="space-y-2 pt-2 text-xs text-gray-300">
                             <div>- Strategy: <span className="text-white">"Steady Profit"</span> <span className="text-gray-500">(Min Margin: 10%)</span></div>
                             <div>- Auto-Accept: <span className="text-nobody-mint">If Bid {'>'} $9.3</span></div>
-                            <div>- Settlement: <span className="text-nobody-violet">SilentSwap (Solana Mainnet)</span></div>
+                            <div>- Settlement: <span className="text-nobody-violet">Private Swap (Avalanche Fuji)</span></div>
                         </div>
                     </DashboardBox>
 
