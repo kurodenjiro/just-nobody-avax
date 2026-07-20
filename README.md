@@ -1,4 +1,4 @@
-# Just Nobody
+# CabalMesh
 
 > **The Zero-Identity Autonomous Layer for Mesh-to-Avalanche Private Intents**
 
@@ -39,7 +39,7 @@ In this network, you are a **Nobody**. Every trace—from your physical location
 ### Installation
 
 ```bash
-cd just-nobody
+cd cabalmesh
 npm install
 ```
 
@@ -100,7 +100,7 @@ The system will:
 ## 🔧 Project Structure
 
 ```
-just-nobody/
+cabalmesh/
 ├── src/                          # React frontend
 │   ├── App.tsx                   # Nexus UI
 │   ├── styles.css                # Tailwind + custom styles

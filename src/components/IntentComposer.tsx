@@ -60,7 +60,7 @@ export const IntentComposer: React.FC<IntentComposerProps> = ({ intent, setInten
 
             {/* Instruction / Help Text */}
             <div className="mt-2 text-center text-slate-400 text-xs font-medium tracking-wide">
-                Protected by Just Nobody Protocol v1.0
+                Protected by CabalMesh Protocol v1.0
             </div>
         </div>
     );

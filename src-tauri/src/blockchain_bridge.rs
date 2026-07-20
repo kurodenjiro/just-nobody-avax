@@ -18,7 +18,7 @@ use aes_gcm::{
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
-const KEYCHAIN_SERVICE: &str = "com.justnobody.wallet";
+const KEYCHAIN_SERVICE: &str = "com.cabalmesh.wallet";
 const KEYCHAIN_USER: &str = "snapshot-encryption-key";
 pub const DEFAULT_AVAX_RPC_URL: &str = "https://api.avax-test.network/ext/bc/C/rpc";
 
@@ -89,7 +89,7 @@ impl BlockchainBridge {
 
         let app_dir = dirs::data_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("just-nobody");
+            .join("cabalmesh");
         let _ = fs::create_dir_all(&app_dir);
 
         let mut bridge = Self {

@@ -78,7 +78,7 @@ impl MeshNetwork {
         )?;
 
         // Create the Privacy Intent topic
-        let topic = gossipsub::IdentTopic::new("just-nobody-privacy-intents");
+        let topic = gossipsub::IdentTopic::new("cabalmesh-privacy-intents");
         gossipsub.subscribe(&topic)?;
 
         // Set up mDNS for local peer discovery (ShadowWire mesh)
