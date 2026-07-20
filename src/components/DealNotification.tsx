@@ -17,7 +17,7 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 50 }}
         >
-            <div className="border border-l-4 border-l-nobody-mint border-slate-200 bg-white rounded-2xl shadow-card-lg overflow-hidden">
+            <div className="border border-l-4 border-l-nobody-mint border-slate-200 bg-nobody-charcoal rounded-2xl shadow-card-lg overflow-hidden">
 
                 {/* Header */}
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
@@ -66,7 +66,7 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                             </button>
                             <button
                                 onClick={onClose}
-                                className="bg-white text-slate-400 font-semibold py-2 text-xs rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-200 hover:border-red-200"
+                                className="bg-nobody-charcoal text-slate-400 font-semibold py-2 text-xs rounded-lg hover:bg-red-950/40 hover:text-red-400 transition-colors border border-slate-200 hover:border-red-900/50"
                             >
                                 ✕ Reject
                             </button>

@@ -57,15 +57,15 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
 
     return (
         <motion.div
-            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
         >
-            <div className="w-[700px] rounded-2xl border border-slate-200 bg-white shadow-card-lg p-8 relative">
+            <div className="w-[700px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg p-8 relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
 
                 <div className="text-center mb-10">
-                    <div className="text-amber-600 text-xs font-semibold tracking-widest mb-2 uppercase">Smart Escrow Protocol</div>
+                    <div className="text-amber-400 text-xs font-semibold tracking-widest mb-2 uppercase">Smart Escrow Protocol</div>
                     <h1 className="text-2xl text-slate-900 font-bold">
                         {released ? "Settlement Complete" : "Settlement In Progress"}
                     </h1>
@@ -74,7 +74,7 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
                 <div className="flex justify-between items-center mb-12 px-10">
                     {/* Left Vault */}
                     <div className="text-center">
-                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-amber-50 border border-amber-200">
+                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-amber-950/30 border border-amber-800/40">
                             💰
                         </div>
                         <div className="text-slate-900 font-semibold">13.5 AVAX</div>
@@ -93,7 +93,7 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
                                 transition={{ duration: 2, repeat: released ? 0 : Infinity }}
                             />
                         </div>
-                        <div className="mt-2 text-[11px] text-amber-600 font-medium">
+                        <div className="mt-2 text-[11px] text-amber-400 font-medium">
                             {released ? "Complete ✓" : <span className="animate-pulse">Verifying integrity...</span>}
                         </div>
                     </div>

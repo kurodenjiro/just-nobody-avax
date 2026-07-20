@@ -48,12 +48,12 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
     return (
         <AnimatePresence>
             <motion.div
-                className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+                className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
-                <div className="w-[600px] rounded-2xl border border-slate-200 bg-white shadow-card-lg overflow-hidden p-6 relative">
+                <div className="w-[600px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden p-6 relative">
 
                     {/* Header */}
                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
@@ -61,7 +61,7 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                             <span className="text-nobody-mint font-semibold">🔒 Integrity Shield</span>
                             <span className="text-slate-400 text-xs">Sender: Nobody_42a8</span>
                         </div>
-                        <span className="text-xs text-amber-600 animate-pulse font-semibold">⚡ Status: Verifying</span>
+                        <span className="text-xs text-amber-400 animate-pulse font-semibold">⚡ Status: Verifying</span>
                     </div>
 
                     {/* Visual Flow Animation */}
@@ -100,7 +100,7 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                                 </div>
                                 <div>
                                     {step > i && <span className="text-nobody-mint font-semibold text-xs">✅</span>}
-                                    {step === i && <span className="text-amber-500 font-semibold text-xs animate-pulse">⏳</span>}
+                                    {step === i && <span className="text-amber-400 font-semibold text-xs animate-pulse">⏳</span>}
                                     {step < i && <span className="text-slate-300 font-semibold text-xs">...</span>}
                                 </div>
                             </motion.div>
@@ -112,7 +112,7 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                         <div className="text-slate-400 font-semibold mb-1 border-b border-slate-100 pb-1">🦈 Security Agent Log</div>
                         {step >= 1 && <div className="text-slate-600">"Detecting 2 relay hops. All headers stripped successfully."</div>}
                         {step >= 2 && <div className="text-slate-600">"Verifying ZK-Proof... Mathematical integrity confirmed."</div>}
-                        {step >= 3 && <div className="text-red-500">Warning: Node_7b tried to append metadata. Blocked & Discarded.</div>}
+                        {step >= 3 && <div className="text-red-400">Warning: Node_7b tried to append metadata. Blocked & Discarded.</div>}
                     </div>
 
                     {/* Footer Actions (Static for visual) */}
@@ -126,9 +126,9 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="absolute inset-0 bg-white/90 flex items-center justify-center backdrop-blur-sm z-20 rounded-2xl"
+                            className="absolute inset-0 bg-nobody-charcoal/90 flex items-center justify-center backdrop-blur-sm z-20 rounded-2xl"
                         >
-                            <div className="text-nobody-mint text-lg font-bold tracking-wide border-2 border-nobody-mint rounded-xl p-4 bg-white shadow-card-lg">
+                            <div className="text-nobody-mint text-lg font-bold tracking-wide border-2 border-nobody-mint rounded-xl p-4 bg-nobody-charcoal shadow-card-lg">
                                 Data is pure & untouched
                             </div>
                         </motion.div>

@@ -17,7 +17,7 @@ export const NodeConfig: React.FC<NodeConfigProps> = ({ visible, onClose }) => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
         >
-            <div className="w-80 bg-white border border-slate-200 rounded-2xl shadow-card-lg text-xs overflow-hidden">
+            <div className="w-80 bg-nobody-charcoal border border-slate-200 rounded-2xl shadow-card-lg text-xs overflow-hidden">
                 {/* Tabs */}
                 <div className="flex border-b border-slate-200">
                     <Tab label="Node Ops" active={tab === "node"} onClick={() => setTab("node")} />
@@ -56,7 +56,7 @@ export const NodeConfig: React.FC<NodeConfigProps> = ({ visible, onClose }) => {
                                     <span>Security:</span>
                                     <span className="text-slate-900 font-medium">2FA via x402</span>
                                 </div>
-                                <div className="text-[11px] bg-amber-50 text-amber-700 p-2 rounded-lg border border-amber-100">
+                                <div className="text-[11px] bg-amber-950/40 text-amber-400 p-2 rounded-lg border border-amber-900/40">
                                     Note: This mode may cause you to miss time-sensitive tasks.
                                 </div>
 
@@ -92,7 +92,7 @@ const Toggle = ({ label, defaultChecked }: { label: string, defaultChecked?: boo
 const Tab = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
     <button
         onClick={onClick}
-        className={`flex-1 py-3 text-center transition-colors font-semibold ${active ? 'bg-white text-slate-900' : 'bg-slate-50 text-slate-400 hover:text-slate-600'}`}
+        className={`flex-1 py-3 text-center transition-colors font-semibold ${active ? 'bg-nobody-charcoal text-slate-900' : 'bg-slate-50 text-slate-400 hover:text-slate-600'}`}
     >
         {label}
     </button>

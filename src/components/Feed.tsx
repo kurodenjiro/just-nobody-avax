@@ -27,7 +27,7 @@ export const Feed: React.FC = () => {
 
     return (
         <motion.div
-            className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-card-lg transition-all duration-500 ease-in-out z-30 overflow-hidden flex flex-col"
+            className="absolute bottom-0 left-0 right-0 bg-nobody-charcoal border-t border-slate-200 shadow-card-lg transition-all duration-500 ease-in-out z-30 overflow-hidden flex flex-col"
             animate={{ height: isExpanded ? "60vh" : "6rem" }}
             initial={{ height: "6rem" }}
         >
@@ -51,7 +51,7 @@ export const Feed: React.FC = () => {
             {/* List Content */}
             <div className="p-4 space-y-4 overflow-y-auto flex-1 bg-slate-50">
                 {feedItems.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-white shadow-card overflow-hidden relative">
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card overflow-hidden relative">
                         {/* Header Line */}
                         <div className="bg-slate-50 px-3 py-1.5 flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-100">
                             <span>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
+import { CabalFigure } from "./icons/CabalFigure";
 
 interface IdentityInitializationProps {
     onComplete: () => void;
@@ -40,12 +41,20 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
 
     return (
         <motion.div
-            className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm text-sm"
+            className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm text-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[600px] rounded-2xl border border-slate-200 bg-white shadow-card-lg relative overflow-hidden">
+            <div className="w-[600px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg relative overflow-hidden">
+
+                {/* Ceremonial Emblem */}
+                <div className="flex flex-col items-center pt-8 pb-2">
+                    <div className="w-16 h-16 rounded-full bg-nobody-violet-soft/50 border border-nobody-violet/30 flex items-center justify-center text-nobody-violet shadow-glow animate-flicker">
+                        <CabalFigure size={34} />
+                    </div>
+                    <div className="mt-3 text-[11px] tracking-[0.2em] text-slate-400 uppercase">A new Nobody enters the Cabal</div>
+                </div>
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">
@@ -79,7 +88,7 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                                 onChange={(e) => setAlias(e.target.value)}
                                 placeholder="Name: The Clueless Fox"
                                 disabled={step === "generating"}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-nobody-mint focus:outline-none focus:bg-white placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-nobody-mint focus:outline-none focus:bg-nobody-charcoal placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
                             />
                             <div className="text-[11px] text-slate-400 text-right">(Local only — not leaked to Mesh)</div>
                         </div>
@@ -90,7 +99,7 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                                 type="password"
                                 placeholder="Password"
                                 disabled={step === "generating"}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-nobody-mint focus:outline-none focus:bg-white placeholder-slate-400 disabled:bg-slate-100 transition-colors"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-nobody-mint focus:outline-none focus:bg-nobody-charcoal placeholder-slate-400 disabled:bg-slate-100 transition-colors"
                             />
                             <input
                                 type="text"

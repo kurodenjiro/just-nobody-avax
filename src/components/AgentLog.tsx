@@ -17,7 +17,7 @@ export const AgentLog: React.FC<AgentLogProps> = ({ visible, logs }) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
             >
-                <div className="bg-white border border-slate-200 shadow-card-lg overflow-hidden rounded-2xl">
+                <div className="bg-nobody-charcoal border border-slate-200 shadow-card-lg overflow-hidden rounded-2xl">
                     {/* Header */}
                     <div className="bg-slate-50 border-b border-slate-200 p-3 text-center">
                         <span className="text-slate-900 font-semibold tracking-wide text-xs uppercase">Local Agent Processing</span>

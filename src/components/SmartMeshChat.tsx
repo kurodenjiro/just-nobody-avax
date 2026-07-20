@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { CabalFigure } from "./icons/CabalFigure";
 
 interface SmartMeshChatProps {
     visible: boolean;
@@ -77,7 +78,7 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
             exit={{ opacity: 0 }}
         >
             {/* Header */}
-            <div className="h-10 border-b border-slate-200 flex items-center justify-between px-4 bg-white">
+            <div className="h-10 border-b border-slate-200 flex items-center justify-between px-4 bg-nobody-charcoal">
                 <div className="text-xs text-nobody-mint font-semibold tracking-wide">
                     Mesh: 4ms | AI-Node: Active (x402)
                 </div>
@@ -115,9 +116,12 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
                         )}
 
                         {msg.type === 'ai-msg' && (
-                            <div className="self-center w-[80%] bg-nobody-mint-soft/40 border border-nobody-mint/20 rounded-2xl p-3 my-2 text-xs">
-                                <strong className="text-nobody-mint">AI: </strong>
-                                <span className="text-slate-600">{msg.text}</span>
+                            <div className="self-center w-[80%] bg-nobody-mint-soft/40 border border-nobody-mint/20 rounded-2xl p-3 my-2 text-xs flex items-start gap-2">
+                                <span className="text-nobody-mint shrink-0 mt-0.5"><CabalFigure size={16} /></span>
+                                <span>
+                                    <strong className="text-nobody-mint">AI: </strong>
+                                    <span className="text-slate-600">{msg.text}</span>
+                                </span>
                             </div>
                         )}
 
@@ -131,7 +135,7 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
             </div>
 
             {/* Input Area */}
-            <div className="h-14 border-t border-slate-200 bg-white flex items-center px-4 gap-3">
+            <div className="h-14 border-t border-slate-200 bg-nobody-charcoal flex items-center px-4 gap-3">
                 <span className="text-slate-300">/</span>
                 <input
                     type="text"
@@ -144,7 +148,7 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
 };
 
 const EscrowWidget = ({ data }: { data: any }) => (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-card overflow-hidden">
+    <div className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card overflow-hidden">
         <div className="bg-slate-50 px-3 py-2 flex justify-between items-center border-b border-slate-100">
             <span className="text-[11px] font-semibold text-slate-900">Smart Escrow Widget</span>
         </div>

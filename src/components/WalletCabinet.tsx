@@ -123,12 +123,12 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
 
     return (
         <motion.div
-            className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm text-sm"
+            className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm text-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[650px] max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-card-lg overflow-hidden">
+            <div className="w-[650px] max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden">
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">
@@ -235,7 +235,7 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
                 <div className="bg-slate-50 border-t border-slate-200 p-3 flex justify-center items-center text-xs">
                     <button
                         onClick={onClose}
-                        className="bg-white text-slate-500 font-semibold px-6 py-2 hover:text-slate-900 transition-colors rounded-full border border-slate-200 hover:border-slate-300 shadow-card"
+                        className="bg-nobody-charcoal text-slate-500 font-semibold px-6 py-2 hover:text-slate-900 transition-colors rounded-full border border-slate-200 hover:border-slate-300 shadow-card"
                     >
                         ← Back
                     </button>
@@ -249,7 +249,7 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
 const ActionButton = ({ label, danger = false, onClick }: { label: string, danger?: boolean, onClick?: () => void }) => (
     <button
         onClick={onClick}
-        className={`flex-1 rounded-xl border py-3 font-semibold text-xs transition-colors ${danger ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+        className={`flex-1 rounded-xl border py-3 font-semibold text-xs transition-colors ${danger ? 'border-red-900/40 text-red-400 hover:bg-red-950/40' : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
     >
         {label}
     </button>

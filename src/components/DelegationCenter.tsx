@@ -41,12 +41,12 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
 
     return (
         <motion.div
-            className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm text-sm"
+            className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm text-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[650px] rounded-2xl border border-slate-200 bg-white shadow-card-lg relative flex flex-col overflow-hidden">
+            <div className="w-[650px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg relative flex flex-col overflow-hidden">
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">

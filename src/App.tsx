@@ -340,7 +340,7 @@ const MenuButton = ({ label, onClick, color }: { label: string, onClick: () => v
     // Determine color classes
     const colorClass = color === "nobody-mint" ? "text-nobody-mint border-nobody-mint/30 hover:bg-nobody-mint-soft" :
         color === "nobody-violet" ? "text-nobody-violet border-nobody-violet/30 hover:bg-nobody-violet-soft" :
-            color === "yellow-500" ? "text-amber-600 border-amber-300 hover:bg-amber-50" :
+            color === "yellow-500" ? "text-amber-400 border-amber-800/40 hover:bg-amber-950/40" :
                 color === "purple-500" ? "text-nobody-violet border-nobody-violet/30 hover:bg-nobody-violet-soft" :
                     color === "green-500" ? "text-nobody-mint border-nobody-mint/30 hover:bg-nobody-mint-soft" :
                         "text-slate-500 hover:text-slate-900 border-slate-200 hover:border-slate-300";
@@ -348,7 +348,7 @@ const MenuButton = ({ label, onClick, color }: { label: string, onClick: () => v
     return (
         <button
             onClick={onClick}
-            className={`text-xs font-semibold px-3 py-1.5 border rounded-full transition-all tracking-wide bg-white shadow-card ${colorClass}`}
+            className={`text-xs font-semibold px-3 py-1.5 border rounded-full transition-all tracking-wide bg-nobody-charcoal shadow-card ${colorClass}`}
         >
             {label}
         </button>

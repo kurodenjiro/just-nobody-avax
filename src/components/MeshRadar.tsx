@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Peer } from "../types";
+import { CabalFigure } from "./icons/CabalFigure";
 
 interface MeshRadarProps {
     peers: Peer[];
@@ -19,7 +20,13 @@ export const MeshRadar: React.FC<MeshRadarProps> = ({ peers }) => {
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 />
 
-                <div className="absolute w-4 h-4 rounded-full bg-nobody-mint shadow-[0_0_20px_rgba(5,150,105,0.35)]" />
+                <motion.div
+                    className="absolute text-nobody-mint drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                >
+                    <CabalFigure size={40} eyeColor="#0a0714" />
+                </motion.div>
 
                 {/* RELAY RIPPLE EFFECT (Mocked for Demo) */}
                 <motion.div
@@ -87,7 +94,7 @@ export const MeshRadar: React.FC<MeshRadarProps> = ({ peers }) => {
                                 animate={{ opacity: [0, 1, 0] }}
                                 transition={{ duration: 3, repeat: Infinity, delay: index * 0.5 + 1 }}
                             >
-                                <span className="text-[10px] font-mono text-nobody-mint bg-white/90 border border-slate-200 px-1.5 py-0.5 rounded shadow-card">
+                                <span className="text-[10px] font-mono text-nobody-mint bg-nobody-charcoal/90 border border-slate-200 px-1.5 py-0.5 rounded shadow-card">
                                     IP: STRIPPED
                                 </span>
                             </motion.div>

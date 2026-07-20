@@ -23,7 +23,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ message, o
                     exit={{ opacity: 0, y: 50 }}
                     className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
                 >
-                    <div className="bg-white border border-nobody-mint/30 px-6 py-3 rounded-full shadow-card-lg flex items-center gap-3">
+                    <div className="bg-nobody-charcoal border border-nobody-mint/30 px-6 py-3 rounded-full shadow-card-lg flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-nobody-mint animate-pulse" />
                         <span className="text-nobody-mint font-medium text-xs">
                             {message}

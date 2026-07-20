@@ -20,12 +20,12 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
 
     return (
         <motion.div
-            className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[650px] rounded-2xl border border-slate-200 bg-white shadow-card-lg overflow-hidden flex flex-col">
+            <div className="w-[650px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden flex flex-col">
 
                 {/* Header */}
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center text-xs font-semibold">
@@ -95,7 +95,7 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
                 {/* Footer Actions */}
                 <div className="bg-slate-50 border-t border-slate-200 p-4 flex justify-between items-center text-xs">
                     <div className="flex gap-3">
-                        <button className="bg-white hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition-colors font-semibold">
+                        <button className="bg-nobody-charcoal hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition-colors font-semibold">
                             Update Snapshot
                         </button>
                         <button className="bg-nobody-mint-soft hover:bg-nobody-mint hover:text-white text-nobody-mint px-3 py-2 rounded-lg transition-colors font-semibold">

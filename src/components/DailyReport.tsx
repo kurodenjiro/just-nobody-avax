@@ -30,12 +30,12 @@ export const DailyReport: React.FC<DailyReportProps> = ({ visible, onClose }) =>
     return (
         <AnimatePresence>
             <motion.div
-                className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+                className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
-                <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-card-lg overflow-hidden relative">
+                <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden relative">
 
                     {/* Header */}
                     <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center relative z-10">
@@ -59,7 +59,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ visible, onClose }) =>
 
                             {/* Overview Card */}
                             <motion.div
-                                className="col-span-1 rounded-2xl bg-white p-5 border border-slate-200 shadow-card hover:border-nobody-mint/50 transition-colors group"
+                                className="col-span-1 rounded-2xl bg-nobody-charcoal p-5 border border-slate-200 shadow-card hover:border-nobody-mint/50 transition-colors group"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 1.5 }}
@@ -85,7 +85,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ visible, onClose }) =>
 
                             {/* Opportunities Card */}
                             <motion.div
-                                className="col-span-2 rounded-2xl bg-white p-5 border border-slate-200 shadow-card hover:border-nobody-violet/50 transition-colors group"
+                                className="col-span-2 rounded-2xl bg-nobody-charcoal p-5 border border-slate-200 shadow-card hover:border-nobody-violet/50 transition-colors group"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 1.7 }}
@@ -128,16 +128,16 @@ export const DailyReport: React.FC<DailyReportProps> = ({ visible, onClose }) =>
 
                         {/* Security Alert (Conditional) */}
                         <motion.div
-                            className="rounded-xl border border-red-100 bg-red-50 p-3 flex items-center justify-between"
+                            className="rounded-xl border border-red-900/40 bg-red-950/40 p-3 flex items-center justify-between"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 2.5 }}
                         >
                             <div className="flex items-center gap-3">
-                                <span className="text-red-500 text-lg">🛡️</span>
-                                <span className="text-red-600 text-xs">Blocked 2 rogue nodes attempting signature replay.</span>
+                                <span className="text-red-400 text-lg">🛡️</span>
+                                <span className="text-red-400 text-xs">Blocked 2 rogue nodes attempting signature replay.</span>
                             </div>
-                            <button className="text-red-500 text-[11px] underline hover:text-red-600">View Logs</button>
+                            <button className="text-red-400 text-[11px] underline hover:text-red-300">View Logs</button>
                         </motion.div>
 
                     </div>

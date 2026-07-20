@@ -28,7 +28,7 @@ export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({
 
                 <button
                     onClick={showConfig}
-                    className="h-8 bg-white px-4 rounded-full border border-slate-200 shadow-card text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-all text-xs font-medium tracking-wide"
+                    className="h-8 bg-nobody-charcoal px-4 rounded-full border border-slate-200 shadow-card text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-all text-xs font-medium tracking-wide"
                 >
                     Config
                 </button>
@@ -41,7 +41,7 @@ export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({
 };
 
 const StatusItem = ({ icon, label, textColor = "text-slate-600" }: { icon: string, label: string, textColor?: string }) => (
-    <div className="h-8 flex items-center gap-2 bg-white px-3 rounded-full border border-slate-200 shadow-card min-w-[100px] justify-center">
+    <div className="h-8 flex items-center gap-2 bg-nobody-charcoal px-3 rounded-full border border-slate-200 shadow-card min-w-[100px] justify-center">
         <span className="text-xs">{icon}</span>
         <span className={`text-xs font-medium tracking-wide ${textColor}`}>
             {label}

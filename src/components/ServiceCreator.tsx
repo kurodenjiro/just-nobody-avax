@@ -28,12 +28,12 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
 
     return (
         <motion.div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-8"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
         >
-            <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-card-lg overflow-hidden flex flex-col">
+            <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden flex flex-col">
 
                 {/* Header */}
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
@@ -54,7 +54,7 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                             onChange={(e) => setPrompt(e.target.value)}
                             onBlur={() => !config && prompt && handleAnalyze()}
                             placeholder='Example: "I want to sell an AI Pixel Art service for 0.1 AVAX per image..."'
-                            className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 focus:border-nobody-mint focus:bg-white outline-none resize-none transition-colors"
+                            className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 focus:border-nobody-mint focus:bg-nobody-charcoal outline-none resize-none transition-colors"
                         />
                     </div>
 
@@ -100,7 +100,7 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                 <div className="border-t border-slate-200 p-4 flex justify-between bg-slate-50">
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors text-xs font-semibold">🗑️ Discard</button>
                     <div className="flex gap-3">
-                        <button className="text-slate-500 hover:text-slate-900 transition-colors text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 bg-white">⚙️ Advanced Setup</button>
+                        <button className="text-slate-500 hover:text-slate-900 transition-colors text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 bg-nobody-charcoal">⚙️ Advanced Setup</button>
                         <button
                             onClick={() => onDeploy(config)}
                             disabled={!config}

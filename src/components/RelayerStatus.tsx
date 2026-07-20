@@ -39,7 +39,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
     }, [isRelaying, activeConnections]);
 
     return (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-card p-4 relative overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card p-4 relative overflow-hidden">
             {/* Background Glow when Active */}
             <AnimatePresence>
                 {isRelaying && (
@@ -66,7 +66,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
                     >
                         <motion.div
                             layout
-                            className="w-4 h-4 rounded-full bg-white shadow-md"
+                            className="w-4 h-4 rounded-full bg-nobody-charcoal shadow-md"
                             animate={{ x: isRelaying ? 24 : 0 }}
                         />
                     </button>

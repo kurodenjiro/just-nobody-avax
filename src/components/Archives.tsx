@@ -17,11 +17,11 @@ export const Archives: React.FC<ArchivesProps> = ({ visible, onClose }) => {
 
     return (
         <motion.div
-            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
         >
-            <div className="w-[800px] rounded-2xl border border-slate-200 bg-white shadow-card-lg p-6 relative">
+            <div className="w-[800px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg p-6 relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
 
                 <h2 className="text-xl text-slate-900 font-bold mb-6 border-b border-slate-100 pb-3 flex items-center gap-2">

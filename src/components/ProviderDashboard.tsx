@@ -27,7 +27,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
             exit={{ opacity: 0 }}
         >
             {/* Header */}
-            <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 bg-white">
+            <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 bg-nobody-charcoal">
                 <div className="flex items-center gap-4">
                     <span className="text-nobody-mint font-semibold tracking-wide">💰 Merchant Mode: Active</span>
                     <span className="text-slate-400 text-xs">ID: Nobody_99</span>
@@ -99,7 +99,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
             </div>
 
             {/* Footer Actions */}
-            <div className="h-16 border-t border-slate-200 bg-white flex items-center justify-between px-6">
+            <div className="h-16 border-t border-slate-200 bg-nobody-charcoal flex items-center justify-between px-6">
                 <div className="flex gap-3">
                     <button className="bg-nobody-mint text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-xs">
                         Accept & Release
@@ -117,8 +117,8 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
 };
 
 const DashboardBox = ({ title, children }: { title: string, children: React.ReactNode }) => (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-card p-4 relative">
-        <div className="absolute -top-3 left-3 bg-white px-2 text-slate-400 text-xs font-semibold tracking-wide border border-slate-200 rounded-full">
+    <div className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card p-4 relative">
+        <div className="absolute -top-3 left-3 bg-nobody-charcoal px-2 text-slate-400 text-xs font-semibold tracking-wide border border-slate-200 rounded-full">
             {title}
         </div>
         {children}
@@ -133,7 +133,7 @@ const ListingItem = ({ label, price }: { label: string, price: string }) => (
 );
 
 const BidRow = ({ user, bid, type }: { user: string, bid: string, type: 'shark' | 'user' }) => (
-    <div className="flex justify-between items-center text-xs p-1.5 hover:bg-white rounded-lg transition-colors cursor-pointer group">
+    <div className="flex justify-between items-center text-xs p-1.5 hover:bg-nobody-charcoal rounded-lg transition-colors cursor-pointer group">
         <span className="text-slate-500 group-hover:text-slate-900 transition-colors">{user}: <span className="text-slate-900 font-semibold">{bid}</span></span>
         <span className={`${type === 'shark' ? 'text-nobody-mint' : 'text-nobody-violet'}`}>
             {type === 'shark' ? '🦈' : '👤'}
