@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -8,9 +8,24 @@ interface DelegationCenterProps {
     onCancel: () => void;
 }
 
+interface IdentityView {
+    alias: string;
+    emoji: string;
+    address: string;
+}
+
 export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onComplete, onCancel }) => {
     const [step, setStep] = useState<"idle" | "signing">("idle");
     const [progress, setProgress] = useState(0);
+    const [identity, setIdentity] = useState<IdentityView | null>(null);
+
+    useEffect(() => {
+        if (visible) {
+            invoke<IdentityView[]>("get_identity")
+                .then((ids) => setIdentity(ids?.[0] || null))
+                .catch((e) => console.error("Failed to fetch identity:", e));
+        }
+    }, [visible]);
 
     const handleSignAndDelegate = async () => {
         setStep("signing");
@@ -51,7 +66,9 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">
                     <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">DELEGATION CENTER</span>
-                    <span className="text-slate-400">Identity: Clueless Fox</span>
+                    <span className="text-slate-400 font-mono">
+                        {identity ? `${identity.emoji || "👻"} ${identity.address.slice(0, 6)}...${identity.address.slice(-4)}` : "Loading..."}
+                    </span>
                     <span className="text-nobody-primary font-medium">Engine: Instant Session</span>
                 </div>
 

@@ -6,8 +6,11 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 // Crypto Imports
 use alloy::{
-    primitives::{Address, U256},
+    eips::eip2718::Encodable2718,
+    network::{EthereumWallet, TransactionBuilder},
+    primitives::{Address, Bytes, U256},
     providers::{Provider, ProviderBuilder},
+    rpc::types::TransactionRequest,
     signers::local::PrivateKeySigner,
     sol,
 };
@@ -17,6 +20,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce, Key
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use tokio::time::{timeout, Duration};
 
 const KEYCHAIN_SERVICE: &str = "com.cabalmesh.wallet";
 const KEYCHAIN_USER: &str = "snapshot-encryption-key";
@@ -26,6 +30,18 @@ sol! {
     #[sol(rpc)]
     IEscrow,
     "abi/Escrow.abi.json"
+}
+
+sol! {
+    #[sol(rpc)]
+    IMarketplace,
+    "abi/Marketplace.abi.json"
+}
+
+sol! {
+    #[sol(rpc)]
+    IVoucher,
+    "abi/CabalMeshVoucher.abi.json"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +74,78 @@ pub struct Snapshot {
     pub signature: String,
 }
 
+/// A Marketplace listing, always backed by a real CabalMeshVoucher tokenId
+/// the seller owns on-chain (enforced by the contract itself at list time).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetListingView {
+    pub id: u64,
+    pub seller: String,
+    pub description: String,
+    pub price_wei: String,  // decimal wei string, same precision rule as CompressedAsset.amount
+    pub price_avax: String, // formatted for display/prompting, e.g. "0.05"
+    pub token_id: u64,
+}
+
+/// A voucher NFT owned by a given wallet (used by the Redeem page).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoucherView {
+    pub token_id: u64,
+    pub voucher_type: String,
+    pub description: String,
+    pub owner: String,
+}
+
+/// Nonce + gas price snapshot from the last time we successfully reached the
+/// RPC, refreshed opportunistically in `sync_state()`. Used to sign
+/// transactions offline when the RPC can't be reached at all.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChainStateCache {
+    pub nonce: u64,
+    pub gas_price_wei: String,
+    pub cached_at: DateTime<Utc>,
+}
+
+/// A transaction signed locally while offline, queued for a mesh peer with
+/// real connectivity to submit on our behalf.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueuedTx {
+    pub id: String,
+    pub raw_tx_hex: String,
+    pub summary: String,
+    pub created_at: DateTime<Utc>,
+    pub status: String, // "queued" | "confirmed" | "failed"
+    pub tx_hash: Option<String>,
+}
+
+/// A transaction this node successfully relayed to the chain on behalf of
+/// another peer — real, persisted credit for helping while offline peers
+/// couldn't reach the network themselves.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelayedTxRecord {
+    pub summary: String,
+    pub tx_hash: String,
+    /// A deterministic estimate (bytes relayed × the same rate shown in Relay
+    /// Mode's stats) — NOT an actual on-chain payout, since there is no
+    /// relayer-payment settlement mechanism yet. Labeled as an estimate wherever shown.
+    pub reward_avax: String,
+    pub relayed_at: DateTime<Utc>,
+}
+
+/// Result of an action that normally hits the chain directly: either it went
+/// through immediately (`Confirmed`), or the RPC was unreachable and it was
+/// signed offline and queued for mesh relay instead (`Queued`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+pub enum TxResult {
+    #[serde(rename = "confirmed")]
+    Confirmed { id: u64 },
+    #[serde(rename = "queued")]
+    Queued {
+        #[serde(rename = "queueId")]
+        queue_id: String,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstantSession {
     pub session_id: String,
@@ -70,8 +158,13 @@ pub struct BlockchainBridge {
     pub identities: Vec<IdentityRecord>,
     pub identity_path: PathBuf,
     pub storage_path: PathBuf,
+    pub chain_cache_path: PathBuf,
+    pub pending_relay_path: PathBuf,
+    pub relayed_history_path: PathBuf,
     pub rpc_url: String,
     pub escrow_address: Option<Address>,
+    pub marketplace_address: Option<Address>,
+    pub voucher_address: Option<Address>,
     pub current_session: Option<InstantSession>,
 }
 
@@ -87,6 +180,16 @@ impl BlockchainBridge {
             .filter(|s| !s.is_empty())
             .and_then(|s| Address::from_str(&s).ok());
 
+        let marketplace_address = std::env::var("MARKETPLACE_CONTRACT_ADDRESS")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| Address::from_str(&s).ok());
+
+        let voucher_address = std::env::var("VOUCHER_CONTRACT_ADDRESS")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| Address::from_str(&s).ok());
+
         let app_dir = dirs::data_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join("cabalmesh");
@@ -96,8 +199,13 @@ impl BlockchainBridge {
             identities: Vec::new(),
             identity_path: app_dir.join("identities.json"),
             storage_path: app_dir.join("snapshot.enc"),
+            chain_cache_path: app_dir.join("chain_cache.json"),
+            pending_relay_path: app_dir.join("pending_relay_txs.json"),
+            relayed_history_path: app_dir.join("relayed_history.json"),
             rpc_url,
             escrow_address,
+            marketplace_address,
+            voucher_address,
             current_session: None,
         };
         let _ = bridge.load_identities();
@@ -169,6 +277,158 @@ impl BlockchainBridge {
         Ok(PrivateKeySigner::from_str(&first.private_key_hex)?)
     }
 
+    // ---- Offline signing + mesh-relay queue -------------------------------
+
+    fn load_chain_cache(&self) -> Option<ChainStateCache> {
+        let content = fs::read_to_string(&self.chain_cache_path).ok()?;
+        serde_json::from_str(&content).ok()
+    }
+
+    fn save_chain_cache(&self, cache: &ChainStateCache) -> Result<(), Box<dyn Error>> {
+        fs::write(&self.chain_cache_path, serde_json::to_string_pretty(cache)?)?;
+        Ok(())
+    }
+
+    fn load_pending_relay_txs(&self) -> Vec<QueuedTx> {
+        fs::read_to_string(&self.pending_relay_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    }
+
+    fn save_pending_relay_txs(&self, txs: &[QueuedTx]) -> Result<(), Box<dyn Error>> {
+        fs::write(&self.pending_relay_path, serde_json::to_string_pretty(txs)?)?;
+        Ok(())
+    }
+
+    /// Refreshes the cached nonce + gas price snapshot from the live RPC.
+    /// Called opportunistically whenever we know we're online (piggybacks on
+    /// `sync_state`) so a later offline attempt has something recent to sign with.
+    async fn refresh_chain_cache(&self, address: Address) -> Result<(), Box<dyn Error>> {
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let nonce = provider.get_transaction_count(address).pending().await?;
+        let gas_price = provider.get_gas_price().await?;
+
+        self.save_chain_cache(&ChainStateCache {
+            nonce,
+            gas_price_wei: gas_price.to_string(),
+            cached_at: Utc::now(),
+        })?;
+        Ok(())
+    }
+
+    /// Signs a contract call fully offline using the cached nonce/gas (bumping
+    /// the cached nonce so a second queued call doesn't collide), and queues
+    /// the raw signed bytes for a mesh peer with connectivity to relay.
+    /// The private key never leaves this function — only the signed bytes do.
+    async fn sign_offline(&self, to: Address, calldata: Bytes, value: U256, summary: &str) -> Result<QueuedTx, Box<dyn Error>> {
+        let cache = self.load_chain_cache().ok_or("No cached chain state available — never been online yet")?;
+        let signer = self.primary_signer()?;
+        let wallet = EthereumWallet::from(signer);
+
+        // +20% buffer on the cached gas price in case it's gone slightly stale.
+        let gas_price: u128 = cache.gas_price_wei.parse::<u128>().unwrap_or(30_000_000_000);
+        let buffered_gas_price = gas_price + (gas_price / 5);
+
+        let tx = TransactionRequest::default()
+            .with_to(to)
+            .with_input(calldata)
+            .with_value(value)
+            .with_nonce(cache.nonce)
+            .with_chain_id(43113)
+            .with_gas_limit(400_000)
+            .with_max_fee_per_gas(buffered_gas_price)
+            .with_max_priority_fee_per_gas(buffered_gas_price);
+
+        let envelope = tx.build(&wallet).await?;
+        let raw_bytes = envelope.encoded_2718();
+        let raw_tx_hex = format!("0x{}", hex::encode(&raw_bytes));
+
+        // Bump the cached nonce immediately so a second offline call (e.g. a
+        // second queued intent search) signs with the next nonce, not this one.
+        self.save_chain_cache(&ChainStateCache {
+            nonce: cache.nonce + 1,
+            gas_price_wei: cache.gas_price_wei,
+            cached_at: cache.cached_at,
+        })?;
+
+        let mut suffix = [0u8; 4];
+        OsRng.fill_bytes(&mut suffix);
+        let id = format!("tx-{}-{}", Utc::now().timestamp_millis(), hex::encode(suffix));
+
+        let queued = QueuedTx {
+            id,
+            raw_tx_hex,
+            summary: summary.to_string(),
+            created_at: Utc::now(),
+            status: "queued".to_string(),
+            tx_hash: None,
+        };
+
+        let mut pending = self.load_pending_relay_txs();
+        pending.push(queued.clone());
+        self.save_pending_relay_txs(&pending)?;
+
+        println!("📡 [Bridge] Signed offline, queued for mesh relay: {} ({})", queued.id, summary);
+        Ok(queued)
+    }
+
+    /// Broadcasts a raw signed transaction someone else queued while offline.
+    /// Used by a peer with real connectivity and Relay Mode on.
+    pub async fn submit_raw_transaction(&self, raw_tx_hex: &str) -> Result<String, Box<dyn Error>> {
+        let hex_str = raw_tx_hex.trim_start_matches("0x");
+        let raw_bytes = hex::decode(hex_str)?;
+
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let receipt = provider.send_raw_transaction(&raw_bytes).await?.get_receipt().await?;
+
+        println!("✅ [Bridge] Relayed transaction confirmed. Tx: {:?}", receipt.transaction_hash);
+        Ok(format!("{:?}", receipt.transaction_hash))
+    }
+
+    pub fn get_pending_relay_txs(&self) -> Vec<QueuedTx> {
+        self.load_pending_relay_txs()
+    }
+
+    /// Real, persisted credit for helping other peers: every transaction this
+    /// node successfully relayed to the chain on someone else's behalf.
+    pub fn record_relayed_tx(&self, summary: &str, tx_hash: &str, reward_avax: &str) -> Result<(), Box<dyn Error>> {
+        let mut history = self.load_relayed_history();
+        history.push(RelayedTxRecord {
+            summary: summary.to_string(),
+            tx_hash: tx_hash.to_string(),
+            reward_avax: reward_avax.to_string(),
+            relayed_at: Utc::now(),
+        });
+        self.save_relayed_history(&history)
+    }
+
+    pub fn get_relayed_history(&self) -> Vec<RelayedTxRecord> {
+        self.load_relayed_history()
+    }
+
+    fn load_relayed_history(&self) -> Vec<RelayedTxRecord> {
+        fs::read_to_string(&self.relayed_history_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    }
+
+    fn save_relayed_history(&self, history: &[RelayedTxRecord]) -> Result<(), Box<dyn Error>> {
+        fs::write(&self.relayed_history_path, serde_json::to_string_pretty(history)?)?;
+        Ok(())
+    }
+
+    pub fn mark_relay_tx_status(&self, id: &str, status: &str, tx_hash: Option<String>) -> Result<(), Box<dyn Error>> {
+        let mut pending = self.load_pending_relay_txs();
+        if let Some(entry) = pending.iter_mut().find(|t| t.id == id) {
+            entry.status = status.to_string();
+            entry.tx_hash = tx_hash;
+        }
+        self.save_pending_relay_txs(&pending)?;
+        Ok(())
+    }
+
     /// Syncs the native AVAX balance for the primary identity and saves an encrypted snapshot.
     pub async fn sync_state(&self, wallet_address_override: &str) -> Result<Snapshot, Box<dyn Error>> {
         let primary = self.get_primary_address();
@@ -181,6 +441,12 @@ impl BlockchainBridge {
         let balance_wei: U256 = provider.get_balance(address).await?;
 
         println!("✅ [Bridge] Fetched balance for {}", target);
+
+        // Best-effort: refresh the offline-signing cache while we know we're online.
+        // Never let this fail the whole sync if the RPC is flaky for just this call.
+        if let Err(e) = self.refresh_chain_cache(address).await {
+            eprintln!("⚠️  Failed to refresh chain state cache: {}", e);
+        }
 
         let snapshot = Snapshot {
             timestamp: Utc::now(),
@@ -299,25 +565,45 @@ impl BlockchainBridge {
     }
 
     /// Creates an on-chain escrow deal, locking `amount_wei` for `payee`.
-    /// Returns the generated escrow id.
-    pub async fn create_escrow(&self, payee: &str, amount_wei: U256, expiry_unix: u64) -> Result<u64, Box<dyn Error>> {
+    /// If the RPC can't be reached within a few seconds, falls back to
+    /// signing the transaction offline and queuing it for mesh relay.
+    pub async fn create_escrow(&self, payee: &str, amount_wei: U256, expiry_unix: u64) -> Result<TxResult, Box<dyn Error>> {
         let signer = self.primary_signer()?;
         let escrow_address = self.escrow_address.ok_or("ESCROW_CONTRACT_ADDRESS not configured")?;
         let payee_addr = Address::from_str(payee)?;
 
+        // Build calldata once — reused for both the online path and the offline fallback.
+        let unsigned_provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let unsigned_contract = IEscrow::new(escrow_address, unsigned_provider);
+        let calldata = unsigned_contract.createEscrow(payee_addr, U256::from(expiry_unix)).calldata().clone();
+
         let provider = ProviderBuilder::new()
             .wallet(signer)
             .connect_http(self.rpc_url.parse()?);
-
         let contract = IEscrow::new(escrow_address, provider);
 
-        let receipt = contract
-            .createEscrow(payee_addr, U256::from(expiry_unix))
-            .value(amount_wei)
-            .send()
-            .await?
-            .get_receipt()
-            .await?;
+        // Errors are mapped to a plain (Send-safe) String inside this block — `Box<dyn
+        // Error>` isn't Send, and holding one alive across the offline-fallback `.await`
+        // below would make the whole Tauri command future non-Send.
+        let online_result = timeout(Duration::from_secs(6), async {
+            let pending = contract
+                .createEscrow(payee_addr, U256::from(expiry_unix))
+                .value(amount_wei)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            pending.get_receipt().await.map_err(|e| e.to_string())
+        }).await;
+
+        let receipt = match online_result {
+            Ok(Ok(receipt)) => receipt,
+            Ok(Err(e)) => return Err(e.into()),
+            Err(_timed_out) => {
+                println!("⚠️  [Bridge] RPC unreachable — signing create_escrow offline for mesh relay.");
+                let queued = self.sign_offline(escrow_address, calldata, amount_wei, "Create escrow").await?;
+                return Ok(TxResult::Queued { queue_id: queued.id });
+            }
+        };
 
         let escrow_id = receipt
             .logs()
@@ -327,7 +613,7 @@ impl BlockchainBridge {
             .ok_or("EscrowCreated event not found in receipt")?;
 
         println!("✅ [Bridge] Escrow {} created. Tx: {:?}", escrow_id, receipt.transaction_hash);
-        Ok(escrow_id)
+        Ok(TxResult::Confirmed { id: escrow_id })
     }
 
     pub async fn release_escrow(&self, escrow_id: u64) -> Result<String, Box<dyn Error>> {
@@ -369,5 +655,303 @@ impl BlockchainBridge {
             "expiry": deal.expiry.to::<u64>(),
             "status": deal.status,
         }))
+    }
+
+    /// Mints a new voucher NFT to the primary identity. This mint call is
+    /// itself the proof-of-possession step: only the real key-holder can
+    /// mint a token into their own name.
+    pub async fn mint_voucher(&self, voucher_type: &str, description: &str) -> Result<u64, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let voucher_address = self.voucher_address.ok_or("VOUCHER_CONTRACT_ADDRESS not configured")?;
+
+        let provider = ProviderBuilder::new().wallet(signer).connect_http(self.rpc_url.parse()?);
+        let contract = IVoucher::new(voucher_address, provider);
+
+        let receipt = contract
+            .mintVoucher(voucher_type.to_string(), description.to_string())
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+
+        let token_id = receipt
+            .logs()
+            .iter()
+            .find_map(|log| log.log_decode::<IVoucher::VoucherMinted>().ok())
+            .map(|l| l.inner.data.tokenId.to::<u64>())
+            .ok_or("VoucherMinted event not found in receipt")?;
+
+        println!("✅ [Bridge] Voucher {} minted. Tx: {:?}", token_id, receipt.transaction_hash);
+        Ok(token_id)
+    }
+
+    /// Approves the Marketplace contract to pull a specific voucher out of
+    /// the seller's wallet, required before that voucher can be listed.
+    pub async fn approve_voucher(&self, token_id: u64) -> Result<String, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let voucher_address = self.voucher_address.ok_or("VOUCHER_CONTRACT_ADDRESS not configured")?;
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+
+        let provider = ProviderBuilder::new().wallet(signer).connect_http(self.rpc_url.parse()?);
+        let contract = IVoucher::new(voucher_address, provider);
+
+        let receipt = contract
+            .approve(marketplace_address, U256::from(token_id))
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+
+        println!("✅ [Bridge] Voucher {} approved for Marketplace. Tx: {:?}", token_id, receipt.transaction_hash);
+        Ok(format!("{:?}", receipt.transaction_hash))
+    }
+
+    /// Publishes a real on-chain listing backed by an owned, approved voucher.
+    /// Returns the generated listing id.
+    pub async fn create_asset_listing(&self, description: &str, price_wei: U256, token_id: u64) -> Result<u64, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+
+        let provider = ProviderBuilder::new()
+            .wallet(signer)
+            .connect_http(self.rpc_url.parse()?);
+
+        let contract = IMarketplace::new(marketplace_address, provider);
+
+        let receipt = contract
+            .createListing(description.to_string(), price_wei, U256::from(token_id))
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+
+        let listing_id = receipt
+            .logs()
+            .iter()
+            .find_map(|log| log.log_decode::<IMarketplace::ListingCreated>().ok())
+            .map(|l| l.inner.data.id.to::<u64>())
+            .ok_or("ListingCreated event not found in receipt")?;
+
+        println!("✅ [Bridge] Listing {} created. Tx: {:?}", listing_id, receipt.transaction_hash);
+        Ok(listing_id)
+    }
+
+    /// Reads all active listings from the Marketplace contract (no signer required).
+    pub async fn get_active_asset_listings(&self) -> Result<Vec<AssetListingView>, Box<dyn Error>> {
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let contract = IMarketplace::new(marketplace_address, provider);
+
+        let result = contract.getActiveListings().call().await?;
+
+        let views = result
+            .result
+            .iter()
+            .zip(result.ids.iter())
+            .map(|(listing, id)| AssetListingView {
+                id: id.to::<u64>(),
+                seller: listing.seller.to_string(),
+                description: listing.description.clone(),
+                price_wei: listing.priceWei.to_string(),
+                price_avax: alloy::primitives::utils::format_ether(listing.priceWei),
+                token_id: listing.tokenId.to::<u64>(),
+            })
+            .collect();
+
+        Ok(views)
+    }
+
+    /// Atomically locks `price_wei` AVAX and pulls the seller's voucher into
+    /// the Marketplace contract in a single transaction. Returns the deal id.
+    /// If the RPC can't be reached within a few seconds, falls back to
+    /// signing the transaction offline and queuing it for mesh relay.
+    pub async fn buy_listing(&self, listing_id: u64, price_wei: U256) -> Result<TxResult, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+
+        let unsigned_provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let unsigned_contract = IMarketplace::new(marketplace_address, unsigned_provider);
+        let calldata = unsigned_contract.buy(U256::from(listing_id)).calldata().clone();
+
+        let provider = ProviderBuilder::new().wallet(signer).connect_http(self.rpc_url.parse()?);
+        let contract = IMarketplace::new(marketplace_address, provider);
+
+        // See create_escrow's comment above: map to String here to keep this future Send.
+        let online_result = timeout(Duration::from_secs(6), async {
+            let pending = contract
+                .buy(U256::from(listing_id))
+                .value(price_wei)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            pending.get_receipt().await.map_err(|e| e.to_string())
+        }).await;
+
+        let receipt = match online_result {
+            Ok(Ok(receipt)) => receipt,
+            Ok(Err(e)) => return Err(e.into()),
+            Err(_timed_out) => {
+                println!("⚠️  [Bridge] RPC unreachable — signing buy_listing offline for mesh relay.");
+                let queued = self.sign_offline(marketplace_address, calldata, price_wei, "Buy listing").await?;
+                return Ok(TxResult::Queued { queue_id: queued.id });
+            }
+        };
+
+        let deal_id = receipt
+            .logs()
+            .iter()
+            .find_map(|log| log.log_decode::<IMarketplace::DealCreated>().ok())
+            .map(|l| l.inner.data.dealId.to::<u64>())
+            .ok_or("DealCreated event not found in receipt")?;
+
+        println!("✅ [Bridge] Deal {} created (voucher + AVAX locked). Tx: {:?}", deal_id, receipt.transaction_hash);
+        Ok(TxResult::Confirmed { id: deal_id })
+    }
+
+    /// Releases a deal: pays the seller and transfers the voucher to the buyer.
+    pub async fn release_deal(&self, deal_id: u64) -> Result<String, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+
+        let provider = ProviderBuilder::new().wallet(signer).connect_http(self.rpc_url.parse()?);
+        let contract = IMarketplace::new(marketplace_address, provider);
+
+        let receipt = contract.releaseDeal(U256::from(deal_id)).send().await?.get_receipt().await?;
+        println!("✅ [Bridge] Deal {} released. Tx: {:?}", deal_id, receipt.transaction_hash);
+        Ok(format!("{:?}", receipt.transaction_hash))
+    }
+
+    /// Refunds a deal: returns AVAX to the buyer and the voucher to the seller.
+    pub async fn refund_deal(&self, deal_id: u64) -> Result<String, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+
+        let provider = ProviderBuilder::new().wallet(signer).connect_http(self.rpc_url.parse()?);
+        let contract = IMarketplace::new(marketplace_address, provider);
+
+        let receipt = contract.refundDeal(U256::from(deal_id)).send().await?.get_receipt().await?;
+        println!("✅ [Bridge] Deal {} refunded. Tx: {:?}", deal_id, receipt.transaction_hash);
+        Ok(format!("{:?}", receipt.transaction_hash))
+    }
+
+    /// Burns a voucher the caller owns, claiming the service it represents.
+    /// Requires real on-chain ownership (`ownerOf(tokenId) == msg.sender`).
+    pub async fn redeem_voucher(&self, token_id: u64) -> Result<String, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let voucher_address = self.voucher_address.ok_or("VOUCHER_CONTRACT_ADDRESS not configured")?;
+
+        let provider = ProviderBuilder::new().wallet(signer).connect_http(self.rpc_url.parse()?);
+        let contract = IVoucher::new(voucher_address, provider);
+
+        let receipt = contract.redeemVoucher(U256::from(token_id)).send().await?.get_receipt().await?;
+        println!("✅ [Bridge] Voucher {} redeemed. Tx: {:?}", token_id, receipt.transaction_hash);
+        Ok(format!("{:?}", receipt.transaction_hash))
+    }
+
+    /// Reads the current on-chain owner of a voucher (no signer required).
+    pub async fn get_voucher_owner(&self, token_id: u64) -> Result<String, Box<dyn Error>> {
+        let voucher_address = self.voucher_address.ok_or("VOUCHER_CONTRACT_ADDRESS not configured")?;
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let contract = IVoucher::new(voucher_address, provider);
+
+        let owner = contract.ownerOf(U256::from(token_id)).call().await?;
+        Ok(owner.to_string())
+    }
+
+    /// Lists every voucher the given address currently owns on-chain — used
+    /// by the Redeem page so it only ever shows vouchers the caller really
+    /// holds, never a claim it has to trust.
+    pub async fn get_owned_vouchers(&self, owner: &str) -> Result<Vec<VoucherView>, Box<dyn Error>> {
+        let voucher_address = self.voucher_address.ok_or("VOUCHER_CONTRACT_ADDRESS not configured")?;
+        let owner_addr = Address::from_str(owner)?;
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let contract = IVoucher::new(voucher_address, provider);
+
+        let next_id = contract.nextTokenId().call().await?.to::<u64>();
+
+        let mut owned = Vec::new();
+        for token_id in 1..next_id {
+            let Ok(current_owner) = contract.ownerOf(U256::from(token_id)).call().await else {
+                continue; // burned or nonexistent token
+            };
+            if current_owner != owner_addr {
+                continue;
+            }
+            if let Ok(data) = contract.vouchers(U256::from(token_id)).call().await {
+                owned.push(VoucherView {
+                    token_id,
+                    voucher_type: data.voucherType,
+                    description: data.description,
+                    owner: current_owner.to_string(),
+                });
+            }
+        }
+
+        Ok(owned)
+    }
+}
+
+#[cfg(test)]
+mod offline_signing_tests {
+    use super::*;
+
+    /// Confirms the offline-signing fallback works with zero network access:
+    /// given only a cached nonce/gas price (as if we'd synced earlier while
+    /// online), `sign_offline` must produce a valid non-empty raw signed
+    /// transaction and queue it — this is the exact path `create_escrow`/
+    /// `buy_listing` fall back to when the RPC can't be reached.
+    #[tokio::test]
+    async fn signs_offline_using_cached_nonce_and_gas() {
+        let tmp_dir = std::env::temp_dir().join(format!("cabalmesh_test_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+
+        let mut bridge = BlockchainBridge {
+            identities: Vec::new(),
+            identity_path: tmp_dir.join("identities.json"),
+            storage_path: tmp_dir.join("snapshot.enc"),
+            chain_cache_path: tmp_dir.join("chain_cache.json"),
+            pending_relay_path: tmp_dir.join("pending_relay_txs.json"),
+            relayed_history_path: tmp_dir.join("relayed_history.json"),
+            // Deliberately unreachable — proves sign_offline never touches the network.
+            rpc_url: "http://127.0.0.1:9".to_string(),
+            escrow_address: None,
+            marketplace_address: None,
+            voucher_address: None,
+            current_session: None,
+        };
+        bridge.generate_new_identity("Test".to_string(), "🧪".to_string()).unwrap();
+
+        // Simulate having synced once while online.
+        bridge.save_chain_cache(&ChainStateCache {
+            nonce: 0,
+            gas_price_wei: "30000000000".to_string(),
+            cached_at: Utc::now(),
+        }).unwrap();
+
+        let to = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
+        let calldata = Bytes::from(vec![0xde, 0xad, 0xbe, 0xef]);
+
+        let queued = bridge
+            .sign_offline(to, calldata, U256::from(0), "test tx")
+            .await
+            .expect("sign_offline should succeed with zero network access");
+
+        assert!(queued.raw_tx_hex.starts_with("0x"));
+        assert!(queued.raw_tx_hex.len() > 10, "raw tx hex should be non-trivial");
+        assert_eq!(queued.status, "queued");
+
+        let pending = bridge.get_pending_relay_txs();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].id, queued.id);
+
+        // Second offline signature should use the bumped nonce, not collide.
+        let calldata2 = Bytes::from(vec![0xca, 0xfe]);
+        let queued2 = bridge
+            .sign_offline(to, calldata2, U256::from(0), "second test tx")
+            .await
+            .expect("second sign_offline should also succeed");
+        assert_ne!(queued.raw_tx_hex, queued2.raw_tx_hex);
+
+        std::fs::remove_dir_all(&tmp_dir).ok();
     }
 }

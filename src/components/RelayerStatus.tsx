@@ -1,42 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRelayStats } from "../hooks/useRelayStats";
 
 interface RelayerStatusProps {
     isRelaying: boolean;
     onToggle: (enabled: boolean) => void;
+    peerCount?: number;
 }
 
-export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onToggle }) => {
-    const [traffic, setTraffic] = useState("0 KB");
-    const [earnings, setEarnings] = useState("0.0000 AVAX");
-    const [activeConnections, setActiveConnections] = useState(0);
-
-    // Simulate Relayer Activity
-    useEffect(() => {
-        if (!isRelaying) return;
-
-        const interval = setInterval(() => {
-            // Randomly simulate traffic spikes and earnings
-            const trafficSpike = Math.random() > 0.7;
-            if (trafficSpike) {
-                setTraffic(prev => {
-                    const current = parseFloat(prev.split(" ")[0]);
-                    return (current + (Math.random() * 0.5)).toFixed(2) + " MB";
-                });
-
-                setEarnings(prev => {
-                    const current = parseFloat(prev.split(" ")[0]);
-                    return (current + 0.0005).toFixed(4) + " AVAX";
-                });
-
-                setActiveConnections(Math.floor(Math.random() * 5) + 1);
-            } else {
-                setActiveConnections(Math.max(1, activeConnections - 1));
-            }
-        }, 2000);
-
-        return () => clearInterval(interval);
-    }, [isRelaying, activeConnections]);
+export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onToggle, peerCount = 0 }) => {
+    const { traffic, earnings } = useRelayStats(isRelaying);
+    const activeConnections = Math.min(peerCount, 5);
 
     return (
         <div className="pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card p-4 relative overflow-hidden">

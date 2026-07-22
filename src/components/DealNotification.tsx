@@ -5,10 +5,24 @@ interface DealNotificationProps {
     visible: boolean;
     onClose: () => void;
     onAccept?: () => void;
+    intentText?: string;
+    recommendedBid?: number;
+    marketPrice?: number;
+    strategy?: string;
 }
 
-export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onClose, onAccept }) => {
+export const DealNotification: React.FC<DealNotificationProps> = ({
+    visible,
+    onClose,
+    onAccept,
+    intentText = "",
+    recommendedBid = 0,
+    marketPrice = 0,
+    strategy = "",
+}) => {
     if (!visible) return null;
+
+    const netVsMarket = marketPrice - recommendedBid;
 
     return (
         <motion.div
@@ -31,25 +45,34 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                 {/* Body */}
                 <div className="p-4 space-y-4 relative">
                     <div className="text-slate-900 text-sm font-medium border-l-2 border-slate-200 pl-3 py-1">
-                        "Agent found a matching Buyer for 'Clueless Fox #04'"
+                        "{intentText || "A mesh peer broadcast a matching intent"}"
                     </div>
 
                     <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-100 space-y-2 text-xs">
                         <div className="text-slate-400 font-semibold mb-2 border-b border-slate-100 pb-1">
-                            📈 Deal Analysis
+                            📈 Shark Agent Analysis (local Ollama)
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-slate-500">Buyer</span>
-                            <span className="text-slate-900 font-semibold">Verified Nobody <span className="text-nobody-primary">(Rep: 99%)</span></span>
+                            <span className="text-slate-500">Peer</span>
+                            <span className="text-slate-900 font-semibold">Anonymous Mesh Peer</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-slate-500">Price</span>
-                            <span className="text-slate-900 font-semibold">13.5 AVAX <span className="text-slate-400 font-normal">(Floor: 12.0)</span></span>
+                            <span className="text-slate-500">Recommended Bid</span>
+                            <span className="text-slate-900 font-semibold">{recommendedBid.toFixed(4)} AVAX <span className="text-slate-400 font-normal">(Market avg: {marketPrice.toFixed(4)})</span></span>
                         </div>
-                        <div className="flex justify-between border-t border-slate-100 pt-2 mt-1">
-                            <span className="text-slate-500">Net Profit</span>
-                            <span className="text-nobody-primary font-semibold">+1.5 AVAX</span>
-                        </div>
+                        {strategy && (
+                            <div className="border-t border-slate-100 pt-2 mt-1 text-slate-600">
+                                {strategy}
+                            </div>
+                        )}
+                        {marketPrice > 0 && (
+                            <div className="flex justify-between border-t border-slate-100 pt-2 mt-1">
+                                <span className="text-slate-500">Vs. Market</span>
+                                <span className={`font-semibold ${netVsMarket >= 0 ? "text-nobody-primary" : "text-red-500"}`}>
+                                    {netVsMarket >= 0 ? "+" : ""}{netVsMarket.toFixed(4)} AVAX
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Actions */}
@@ -62,7 +85,7 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                                 onClick={onAccept}
                                 className="bg-nobody-primary text-nobody-ink font-semibold py-2 text-xs pixel-corners-sm hover:brightness-125 transition-colors flex items-center justify-center gap-1"
                             >
-                                <span>✔ Accept & Mint</span>
+                                <span>✔ Accept & Lock Escrow</span>
                             </button>
                             <button
                                 onClick={onClose}

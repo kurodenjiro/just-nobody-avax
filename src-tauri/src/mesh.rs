@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
@@ -48,6 +50,10 @@ pub struct PrivacyIntent {
 pub struct MeshNetwork {
     pub swarm: Swarm<MeshBehaviour>,
     pub topic: gossipsub::IdentTopic,
+    /// Real bytes relayed (sent + received) through the mesh topic, shared
+    /// with the Tauri command layer so Relay Mode can show actual traffic
+    /// instead of a simulated number.
+    pub relay_bytes: Arc<AtomicU64>,
 }
 
 impl MeshNetwork {
@@ -98,7 +104,7 @@ impl MeshNetwork {
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
             .build();
 
-        Ok(MeshNetwork { swarm, topic })
+        Ok(MeshNetwork { swarm, topic, relay_bytes: Arc::new(AtomicU64::new(0)) })
     }
 
     pub async fn start(
@@ -144,6 +150,7 @@ impl MeshNetwork {
                                 }
                             }
                             MeshBehaviourEvent::Gossipsub(gossipsub::Event::Message { message, .. }) => {
+                                self.relay_bytes.fetch_add(message.data.len() as u64, Ordering::Relaxed);
                                 // Try to parse as PrivacyIntent first
                                 let intent: Result<PrivacyIntent, _> = serde_json::from_slice(&message.data);
                                 if let Ok(intent) = intent {
@@ -152,18 +159,38 @@ impl MeshNetwork {
                                         // Parse the payload as JSON to get the actual message type
                                         if let Ok(settlement) = serde_json::from_str::<serde_json::Value>(&intent.payload) {
                                             let msg_type = settlement.get("type").and_then(|v| v.as_str());
-                                            
+
                                             if msg_type == Some("SettlementComplete") {
                                                 println!("✅ Received Settlement Confirmation: {:?}", settlement);
-                                                let _ = tx.send(MeshEvent::SettlementComplete { 
-                                                    details: settlement.to_string() 
+                                                let _ = tx.send(MeshEvent::SettlementComplete {
+                                                    details: settlement.to_string()
                                                 });
                                             } else if msg_type == Some("DealAccepted") {
                                                 println!("🤝 Received Deal Acceptance: {:?}", settlement);
-                                                let _ = tx.send(MeshEvent::DealAccepted { 
-                                                    details: settlement.to_string() 
+                                                let _ = tx.send(MeshEvent::DealAccepted {
+                                                    details: settlement.to_string()
                                                 });
                                             }
+                                        }
+                                    } else if intent.intent_type == "relay_tx" {
+                                        // A peer offline-signed a transaction and needs someone with
+                                        // connectivity to broadcast it — never contains a private key,
+                                        // only the already-signed raw transaction bytes.
+                                        if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&intent.payload) {
+                                            let queue_id = payload.get("queue_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            let raw_tx_hex = payload.get("raw_tx_hex").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            let summary = payload.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            println!("📡 Received relay_tx request: {} ({})", queue_id, summary);
+                                            let _ = tx.send(MeshEvent::RelayTxReceived { queue_id, raw_tx_hex, summary });
+                                        }
+                                    } else if intent.intent_type == "relay_confirmed" {
+                                        // A relay peer is reporting back the outcome of a relay_tx it submitted.
+                                        if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&intent.payload) {
+                                            let queue_id = payload.get("queue_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            let status = payload.get("status").and_then(|v| v.as_str()).unwrap_or("failed").to_string();
+                                            let tx_hash = payload.get("tx_hash").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                            println!("📨 Received relay_confirmed: {} -> {}", queue_id, status);
+                                            let _ = tx.send(MeshEvent::RelayConfirmed { queue_id, status, tx_hash });
                                         }
                                     } else {
                                         // Regular trade intent
@@ -205,12 +232,14 @@ impl MeshNetwork {
         }
 
         let payload = serde_json::to_vec(&intent)?;
+        let payload_len = payload.len() as u64;
         match self.swarm
             .behaviour_mut()
             .gossipsub
-            .publish(self.topic.clone(), payload) 
+            .publish(self.topic.clone(), payload)
         {
             Ok(_) => {
+                self.relay_bytes.fetch_add(payload_len, Ordering::Relaxed);
                 println!("📤 Intent broadcasted to mesh (Relay Hop: {})", intent.relay_path.len());
                 Ok(())
             }
@@ -270,4 +299,6 @@ pub enum MeshEvent {
     IntentReceived { intent: PrivacyIntent },
     DealAccepted { details: String },
     SettlementComplete { details: String },
+    RelayTxReceived { queue_id: String, raw_tx_hex: String, summary: String },
+    RelayConfirmed { queue_id: String, status: String, tx_hash: Option<String> },
 }

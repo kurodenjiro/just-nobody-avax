@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { formatEther } from "ethers";
-import { PixelSyncIcon, PixelShieldIcon, PixelTrashIcon, PixelPlusIcon } from "./icons/PixelIcons";
+import { PixelShieldIcon } from "./icons/PixelIcons";
 
 interface WalletCabinetProps {
     visible: boolean;
     onClose: () => void;
     onOpenConfig: () => void;
-    onAddNew: () => void;
     onDelegate: () => void;
+    peerCount?: number;
 }
 
 interface CompressedAsset {
@@ -31,13 +31,10 @@ interface IdentityView {
     address: string;
 }
 
-export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, onOpenConfig, onAddNew, onDelegate }) => {
-    const [revealBalance, setRevealBalance] = useState(false);
+export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, onOpenConfig, onDelegate, peerCount = 0 }) => {
     const [bridgeStatus, setBridgeStatus] = useState<string | null>(null);
-    const [selectedId, setSelectedId] = useState("primary");
     const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-    const [identities, setIdentities] = useState<IdentityView[]>([]); // Array of IdentityView
-    const [peerCount, setPeerCount] = useState<number>(0);
+    const [identity, setIdentity] = useState<IdentityView | null>(null);
     const [syncing, setSyncing] = useState(false);
 
     const fetchSnapshot = async () => {
@@ -52,20 +49,22 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
     };
 
     useEffect(() => {
-        if (visible) {
-            invoke("get_bridge_status").then((status: any) => setBridgeStatus(status)).catch(console.error);
-            invoke("get_active_peers").then((count: any) => setPeerCount(count)).catch(console.error);
-            fetchIdentities();
-            fetchSnapshot();
-        }
+        if (!visible) return;
+        invoke("get_bridge_status").then((status: any) => setBridgeStatus(status)).catch(console.error);
+        fetchIdentity();
+        fetchSnapshot();
+
+        // Auto-refresh the balance while the cabinet is open, instead of only on manual click.
+        const interval = setInterval(fetchSnapshot, 15000);
+        return () => clearInterval(interval);
     }, [visible]);
 
-    const fetchIdentities = async () => {
+    const fetchIdentity = async () => {
         try {
             const ids = await invoke<IdentityView[]>("get_identity");
-            setIdentities(ids || []);
+            setIdentity(ids?.[0] || null);
         } catch (e) {
-            console.error("Failed to fetch identities", e);
+            console.error("Failed to fetch identity", e);
         }
     };
 
@@ -107,12 +106,6 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
         }
     };
 
-    const handleShield = () => {
-        // Real logic would require a confidential-compute SDK + keys
-        // Since we are strictly "No Mock", we indicate the requirement
-        alert("🛡️ Shielding initiated:\n\nRequesting Confidential Compute integration...\n[Pending: Avalanche identity signing support]");
-    };
-
     const handleDelegate = async () => {
         // Trigger navigation to DelegationCenter
         onDelegate();
@@ -121,6 +114,7 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
     if (!visible) return null;
 
     const nativeBalance = snapshot?.assets?.find((a) => a.symbol === "AVAX");
+    const balanceText = nativeBalance ? formatEther(nativeBalance.amount) : "0.00";
 
     return (
         <motion.div
@@ -129,112 +123,61 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[650px] max-h-[85vh] flex flex-col hud-frame border border-nobody-primary/20 bg-nobody-charcoal shadow-card-lg overflow-hidden text-nobody-primary">
+            <div className="w-[600px] max-h-[85vh] flex flex-col hud-frame border border-nobody-primary/20 bg-nobody-charcoal shadow-card-lg overflow-hidden text-nobody-primary">
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-nobody-primary/20 flex justify-between items-center text-xs">
-                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">WALLET CABINET</span>
-                    <span className="text-slate-400">PEERS:{peerCount}</span>
+                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">WALLET</span>
                     <div className="flex items-center gap-3">
-                        <span className="text-nobody-primary font-medium">{bridgeStatus || "Instant Session Engine: Inactive"}</span>
+                        <span className="text-nobody-primary font-medium">
+                            {bridgeStatus?.includes("Active") ? "🟢 Agent Access: On" : "⚪ Agent Access: Off"}
+                        </span>
                         <button onClick={onOpenConfig} className="text-slate-400 hover:text-slate-700 transition-colors">⚙️</button>
                         <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
                     </div>
                 </div>
 
-                <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="p-6 space-y-6 overflow-y-auto">
 
-                    {/* List of Identities */}
-                    <AnimatePresence>
-                        {identities.map((id, index) => (
-                            <div
-                                key={index}
-                                className={`p-4 pixel-corners-sm border mb-2 transition-all cursor-pointer group ${selectedId === id.address || (selectedId === 'primary' && index === 0) ? 'border-nobody-primary bg-nobody-primary-soft/40' : 'border-slate-200 hover:bg-slate-50'}`}
-                                onClick={() => setSelectedId(id.address)}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2.5 h-2.5 rounded-full ${selectedId === id.address || (selectedId === 'primary' && index === 0) ? 'bg-nobody-primary' : 'bg-slate-300'}`} />
-                                        <div className="flex flex-col">
-                                            <span className="text-slate-900 font-semibold text-sm group-hover:text-nobody-primary transition-colors">
-                                                {id.emoji || "👻"} {id.alias}
-                                            </span>
-                                            <span className="text-[11px] text-slate-400 font-mono">
-                                                {id.address.slice(0, 10)}...{id.address.slice(-8)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <span className="text-xs text-slate-400">
-                                        {index === 0 && snapshot ? `Last sync: ${new Date(snapshot.timestamp).toLocaleTimeString()}` : ""}
-                                    </span>
-                                </div>
-
-                                {index === 0 && ( // Only show details for primary for now
-                                    <div className="pl-[18px] space-y-1.5 text-xs text-slate-500 mt-2">
-                                        <div className="flex justify-between">
-                                            <span>Public AVAX (Gas)</span>
-                                            <span className="text-slate-900 font-semibold">
-                                                {nativeBalance ? `${formatEther(nativeBalance.amount)} AVAX` : "0.00 AVAX"}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span>Shielded Assets</span>
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // Prevent parent click
-                                                        setRevealBalance(!revealBalance);
-                                                    }}
-                                                    className="text-nobody-primary hover:underline font-semibold"
-                                                >
-                                                    {revealBalance && selectedId === 'primary' ?
-                                                        `${snapshot ? snapshot.assets.length : 0} Items`
-                                                        : "👁️ Reveal"}
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleShield();
-                                                    }}
-                                                    className="text-slate-400 hover:text-slate-700"
-                                                >
-                                                    🛡️ Shield
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                    {/* Balance — the single most important number, given its own space */}
+                    <div className="pixel-corners-sm bg-nobody-primary-soft/30 border border-nobody-primary/20 p-5 text-center">
+                        <div className="text-xs text-slate-500 mb-1">Your Balance</div>
+                        <div className="text-3xl font-bold text-nobody-primary">{balanceText} AVAX</div>
+                        {identity && (
+                            <div className="text-[11px] text-slate-400 font-mono mt-2">
+                                {identity.emoji || "👻"} {identity.address.slice(0, 10)}...{identity.address.slice(-8)}
                             </div>
-                        ))}
-                    </AnimatePresence>
-
-                    {/* Actions */}
-                    <div className="space-y-2">
-                        <div className="text-slate-400 text-[10px] font-pixel tracking-wide border-b border-nobody-primary/15 pb-2">
-                            [ ACTIONS ]
-                        </div>
-                        <div className="flex gap-2">
-                            <ActionButton label="Generate Identity" icon={<PixelPlusIcon size={14} />} onClick={onAddNew} />
-                            <ActionButton label={syncing ? "Syncing..." : "Sync All"} icon={<PixelSyncIcon size={14} />} onClick={handleSync} />
-                            {/* Authority Delegation */}
-                            <ActionButton
-                                label="Delegate Authority"
-                                icon={<PixelShieldIcon size={14} />}
-                                onClick={handleDelegate}
-                            />
-                            <ActionButton label="Full Reset" icon={<PixelTrashIcon size={14} />} danger onClick={handleDelete} />
+                        )}
+                        <div className="flex justify-center gap-4 mt-3 text-xs">
+                            <button onClick={handleSync} disabled={syncing} className="text-nobody-primary hover:underline font-semibold disabled:opacity-50">
+                                {syncing ? "Refreshing..." : "🔄 Refresh Balance"}
+                            </button>
                         </div>
                     </div>
 
-                    {/* Agent Tip */}
-                    <div className="bg-nobody-primary-soft/40 border border-nobody-primary/20 pixel-corners-sm p-3 text-xs text-slate-600">
-                        <span className="text-nobody-primary font-semibold">Agent:</span> "Ready to trade. Your PeerID is rotating every 24h to keep your wallet address hidden from the Mesh nodes."
+                    {/* Primary action — one clear, prominent next step */}
+                    <button
+                        onClick={handleDelegate}
+                        className="w-full flex items-center justify-center gap-2 bg-nobody-primary text-nobody-ink font-semibold py-3.5 pixel-corners-sm hover:brightness-125 transition-all hover:scale-[1.01] shadow-card"
+                    >
+                        <PixelShieldIcon size={16} /> Let My Agent Trade For Me
+                    </button>
+
+                    {/* Danger zone — visually separated and de-emphasized so it's never confused with a normal action */}
+                    <div className="pt-2 border-t border-slate-100 flex justify-end">
+                        <button
+                            onClick={handleDelete}
+                            className="text-[11px] text-slate-400 hover:text-red-600 transition-colors"
+                        >
+                            Erase all local data
+                        </button>
                     </div>
 
                 </div>
 
                 {/* Footer */}
-                <div className="bg-slate-50 border-t border-slate-200 p-3 flex justify-center items-center text-xs">
+                <div className="bg-slate-50 border-t border-slate-200 px-5 py-2 flex justify-between items-center text-xs">
+                    <span className="text-slate-400">Mesh: {peerCount} peers connected</span>
                     <button
                         onClick={onClose}
                         className="bg-nobody-charcoal text-slate-500 font-pixel text-[10px] px-6 py-2 hover:text-nobody-primary transition-colors pixel-corners-sm border border-slate-300 hover:border-nobody-primary shadow-card"
@@ -247,13 +190,3 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
     );
 
 };
-
-const ActionButton = ({ label, icon, danger = false, onClick }: { label: string, icon?: React.ReactNode, danger?: boolean, onClick?: () => void }) => (
-    <button
-        onClick={onClick}
-        className={`flex-1 pixel-corners-sm border py-3 font-mono text-xs transition-all duration-150 hover:scale-[1.03] hover:shadow-card-lg flex flex-col items-center gap-1.5 ${danger ? 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500' : 'border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-nobody-primary hover:border-nobody-primary'}`}
-    >
-        {icon}
-        {label}
-    </button>
-);

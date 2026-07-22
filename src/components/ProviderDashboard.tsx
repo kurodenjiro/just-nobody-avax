@@ -1,23 +1,40 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { invoke } from "@tauri-apps/api/core";
 import { RelayerStatus } from "./RelayerStatus";
+import { AssetListingView } from "../types";
 
 interface ProviderDashboardProps {
     visible: boolean;
     onClose: () => void;
     onCreateService: () => void;
+    isRelaying: boolean;
+    onToggleRelay: (enabled: boolean) => void;
+    refreshKey?: number;
+    peerCount?: number;
 }
 
-export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, onClose, onCreateService }) => {
-    const [isRelaying, setIsRelaying] = useState(false);
+export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, onClose, onCreateService, isRelaying, onToggleRelay, refreshKey, peerCount = 0 }) => {
+    const [listings, setListings] = useState<AssetListingView[]>([]);
+    const [loadingListings, setLoadingListings] = useState(false);
 
-    const [logs] = useState<string[]>([]);
+    const loadListings = useCallback(() => {
+        setLoadingListings(true);
+        invoke<AssetListingView[]>("get_active_asset_listings")
+            .then(setListings)
+            .catch((e) => console.error("Failed to load listings:", e))
+            .finally(() => setLoadingListings(false));
+    }, []);
 
     useEffect(() => {
-        // Real logs handled elsewhere
-    }, [visible]);
+        if (visible) {
+            loadListings();
+        }
+    }, [visible, refreshKey, loadListings]);
 
     if (!visible) return null;
+
+    const listedValue = listings.reduce((sum, l) => sum + (parseFloat(l.price_avax) || 0), 0);
 
     return (
         <motion.div
@@ -28,26 +45,29 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
         >
             {/* Header */}
             <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 bg-nobody-charcoal">
-                <div className="flex items-center gap-4">
-                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">MERCHANT MODE: ACTIVE</span>
-                    <span className="text-slate-400 text-xs">ID: Nobody_99</span>
-                </div>
+                <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">ARSENAL MODE: ACTIVE</span>
                 <div className="text-nobody-gold font-semibold bg-nobody-gold-soft px-3 py-1 pixel-corners-sm text-xs">
-                    🏦 Liquidity: 500 AVAX
+                    🏦 Listed Value: {listedValue.toFixed(4)} AVAX
                 </div>
             </div>
 
             {/* Main Layout */}
             <div className="flex-1 p-6 grid grid-cols-2 gap-6 overflow-y-auto">
 
-                {/* Left Column: Listings & Strategy */}
+                {/* Left Column: Listings */}
                 <div className="space-y-6">
 
                     <DashboardBox title="Active Listings">
                         <div className="space-y-2 pt-2">
-                            <ListingItem label="1. 📦 120x ESP32" price="$9.5" />
-                            <ListingItem label="2. 🎨 Fox Trait NFT" price="15 AVAX" />
-                            <ListingItem label="3. ⚡ bandwidth_relay" price="0.1/kb" />
+                            {loadingListings && listings.length === 0 && (
+                                <div className="text-slate-400 text-xs italic">Loading on-chain listings...</div>
+                            )}
+                            {!loadingListings && listings.length === 0 && (
+                                <div className="text-slate-400 text-xs italic">No active listings yet.</div>
+                            )}
+                            {listings.map((l, i) => (
+                                <ListingItem key={l.id} label={`${i + 1}. 🎫 #${l.token_id} — ${l.description}`} price={`${l.price_avax} AVAX`} />
+                            ))}
 
                             <button
                                 onClick={onCreateService}
@@ -58,58 +78,22 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
                         </div>
                     </DashboardBox>
 
-                    {/* Relayer Mode Status */}
-                    <RelayerStatus
-                        isRelaying={isRelaying}
-                        onToggle={setIsRelaying}
-                    />
-
-                    <DashboardBox title="🧠 Merchant Agent Strategy">
-                        <div className="space-y-2 pt-2 text-xs text-slate-500">
-                            <div>Strategy: <span className="text-slate-900 font-medium">"Steady Profit"</span> <span className="text-slate-400">(Min Margin: 10%)</span></div>
-                            <div>Auto-Accept: <span className="text-nobody-primary font-medium">If Bid {'>'} $9.3</span></div>
-                            <div>Settlement: <span className="text-nobody-gold font-medium">Private Swap (Avalanche Fuji)</span></div>
-                        </div>
-                    </DashboardBox>
-
                 </div>
 
-                {/* Right Column: Incoming Bids & Log */}
+                {/* Right Column: Relay Mode */}
                 <div className="space-y-6">
-
-                    <DashboardBox title="🛰️ Incoming Agent Bids">
-                        <div className="bg-slate-50 pixel-corners-sm border border-slate-100 p-2 space-y-1">
-                            <BidRow user="Nobody_42a8" bid="$9.1" type="shark" />
-                            <BidRow user="Nobody_11x9" bid="$9.4" type="user" />
-                            <BidRow user="Nobody_zero" bid="$9.0" type="shark" />
-                        </div>
-                    </DashboardBox>
-
-                    <DashboardBox title="🦈 Live Negotiation Log">
-                        <div className="text-xs space-y-2 h-40 overflow-y-auto font-mono">
-                            {logs.map((log, i) => (
-                                <div key={i} className={`${log.includes('ALERT') ? 'text-nobody-primary bg-nobody-primary-soft pixel-corners-sm p-2 animate-pulse' : 'text-slate-500'}`}>
-                                    {log}
-                                </div>
-                            ))}
-                        </div>
-                    </DashboardBox>
-
+                    <RelayerStatus
+                        isRelaying={isRelaying}
+                        onToggle={onToggleRelay}
+                        peerCount={peerCount}
+                    />
                 </div>
             </div>
 
             {/* Footer Actions */}
-            <div className="h-16 border-t border-slate-200 bg-nobody-charcoal flex items-center justify-between px-6">
-                <div className="flex gap-3">
-                    <button className="bg-nobody-primary text-nobody-ink font-semibold px-4 py-2 pixel-corners-sm hover:brightness-125 transition-colors text-xs">
-                        Accept & Release
-                    </button>
-                    <button className="bg-slate-100 text-slate-700 font-semibold px-4 py-2 pixel-corners-sm hover:bg-slate-200 transition-colors text-xs">
-                        Counter Offer
-                    </button>
-                </div>
+            <div className="h-16 border-t border-slate-200 bg-nobody-charcoal flex items-center justify-end px-6">
                 <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xs font-semibold border border-slate-200 pixel-corners-sm px-3 py-2 transition-colors">
-                    📊 Sales Stats
+                    ← Back to Nexus
                 </button>
             </div>
         </motion.div>
@@ -129,14 +113,5 @@ const ListingItem = ({ label, price }: { label: string, price: string }) => (
     <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 last:border-0">
         <span className="text-slate-900 font-medium">{label}</span>
         <span className="text-nobody-primary font-medium">{price}</span>
-    </div>
-);
-
-const BidRow = ({ user, bid, type }: { user: string, bid: string, type: 'shark' | 'user' }) => (
-    <div className="flex justify-between items-center text-xs p-1.5 hover:bg-nobody-charcoal pixel-corners-sm transition-colors cursor-pointer group">
-        <span className="text-slate-500 group-hover:text-slate-900 transition-colors">{user}: <span className="text-slate-900 font-semibold">{bid}</span></span>
-        <span className={`${type === 'shark' ? 'text-nobody-primary' : 'text-nobody-gold'}`}>
-            {type === 'shark' ? '🦈' : '👤'}
-        </span>
     </div>
 );

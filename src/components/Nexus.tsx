@@ -6,24 +6,19 @@ interface StatusIndicatorProps {
     showConfig: () => void;
 }
 
-export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({ children, showConfig }) => {
+export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({ children, isOnline, peerCount, showConfig }) => {
     return (
         <div className="h-screen w-screen bg-nobody-dark overflow-hidden flex flex-col relative font-sans text-slate-900 selection:bg-nobody-primary-soft selection:text-nobody-ink">
             <div className="absolute top-4 right-4 flex gap-2 z-30">
                 <StatusItem
-                    icon="⚡"
-                    label="4ms"
+                    icon={isOnline ? "🟢" : "🔴"}
+                    label={isOnline ? "ONLINE" : "OFFLINE"}
+                    textColor={isOnline ? "text-nobody-primary" : "text-red-500"}
                 />
 
                 <StatusItem
-                    icon="🌐"
-                    label="NODE:ALPHA-7"
-                />
-
-                <StatusItem
-                    icon="👤"
-                    label="98% REP"
-                    textColor="text-nobody-primary"
+                    icon="👥"
+                    label={`${peerCount} PEERS`}
                 />
 
                 <button
