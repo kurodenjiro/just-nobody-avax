@@ -23,7 +23,7 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <span className="animate-pulse text-lg">🔔</span>
-                        <span className="text-nobody-primary text-[10px] font-pixel tracking-wide">[ NOTIFICATION ]</span>
+                        <span className="text-nobody-primary text-[10px] font-pixel tracking-wide">NOTIFICATION</span>
                     </div>
                     <span className="text-[11px] text-slate-400">just now</span>
                 </div>

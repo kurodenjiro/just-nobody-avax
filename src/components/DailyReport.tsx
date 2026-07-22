@@ -41,7 +41,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ visible, onClose }) =>
                     <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center relative z-10">
                         <div className="flex items-center gap-3">
                             <div className="w-3 h-3 bg-nobody-primary rounded-full animate-pulse" />
-                            <span className="text-nobody-primary font-pixel tracking-wide text-xs">[ AI PARTNER REPORT ]</span>
+                            <span className="text-nobody-primary font-pixel tracking-wide text-xs">AI PARTNER REPORT</span>
                         </div>
                         <span className="text-slate-400 text-xs">{today}</span>
                     </div>

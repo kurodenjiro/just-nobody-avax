@@ -20,7 +20,7 @@ export const AgentLog: React.FC<AgentLogProps> = ({ visible, logs }) => {
                 <div className="bg-nobody-charcoal border border-nobody-primary/30 shadow-card-lg overflow-hidden pixel-corners">
                     {/* Header */}
                     <div className="bg-slate-50 border-b border-nobody-primary/20 p-3 text-center">
-                        <span className="text-nobody-primary font-pixel tracking-wide text-[10px]">[ LOCAL AGENT PROCESSING ]</span>
+                        <span className="text-nobody-primary font-pixel tracking-wide text-[10px]">LOCAL AGENT PROCESSING</span>
                     </div>
 
                     <div className="p-6 space-y-4">

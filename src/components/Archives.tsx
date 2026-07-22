@@ -25,7 +25,7 @@ export const Archives: React.FC<ArchivesProps> = ({ visible, onClose }) => {
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
 
                 <h2 className="text-nobody-gold font-pixel text-xs mb-6 border-b border-nobody-gold/20 pb-3 flex items-center gap-2">
-                    <span>📂</span> [ ARCHIVES // TRANSACTION_LOG ]
+                    <span>📂</span> ARCHIVES // TRANSACTION LOG
                 </h2>
 
                 <div className="space-y-2">

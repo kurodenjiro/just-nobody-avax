@@ -50,7 +50,7 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">
-                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">[ DELEGATION CENTER ]</span>
+                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">DELEGATION CENTER</span>
                     <span className="text-slate-400">Identity: Clueless Fox</span>
                     <span className="text-nobody-primary font-medium">Engine: Instant Session</span>
                 </div>

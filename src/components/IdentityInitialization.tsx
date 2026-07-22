@@ -58,7 +58,7 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-nobody-gold/20 flex justify-between items-center text-xs">
-                    <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">[ IDENTITY CREATION ]</span>
+                    <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">IDENTITY CREATION</span>
                     <span className="text-slate-400">MODE:{mode === "create" ? "NEW" : "IMPORT"}</span>
                     <span className="text-nobody-primary font-pixel text-[10px]">SEC:HIGH</span>
                 </div>

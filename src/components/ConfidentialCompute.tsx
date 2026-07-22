@@ -44,7 +44,7 @@ export const ConfidentialCompute: React.FC<ConfidentialComputeProps> = ({ visibl
 
                 {/* Header */}
                 <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-center text-xs font-semibold tracking-[0.1em] relative">
-                    <span className="text-nobody-primary font-pixel text-[10px]">[ CONFIDENTIAL COMPUTE // MPC-FHE ]</span>
+                    <span className="text-nobody-primary font-pixel text-[10px]">CONFIDENTIAL COMPUTE</span>
                     <button onClick={onClose} className="absolute right-4 text-slate-400 hover:text-slate-700 top-4 transition-colors">✕</button>
                 </div>
 

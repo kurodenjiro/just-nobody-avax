@@ -29,7 +29,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({ visible, o
             {/* Header */}
             <div className="h-14 border-b border-slate-200 flex items-center justify-between px-6 bg-nobody-charcoal">
                 <div className="flex items-center gap-4">
-                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">[ MERCHANT MODE: ACTIVE ]</span>
+                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">MERCHANT MODE: ACTIVE</span>
                     <span className="text-slate-400 text-xs">ID: Nobody_99</span>
                 </div>
                 <div className="text-nobody-gold font-semibold bg-nobody-gold-soft px-3 py-1 pixel-corners-sm text-xs">

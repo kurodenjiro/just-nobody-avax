@@ -133,7 +133,7 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-nobody-primary/20 flex justify-between items-center text-xs">
-                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">[ WALLET CABINET ]</span>
+                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">WALLET CABINET</span>
                     <span className="text-slate-400">PEERS:{peerCount}</span>
                     <div className="flex items-center gap-3">
                         <span className="text-nobody-primary font-medium">{bridgeStatus || "Instant Session Engine: Inactive"}</span>
