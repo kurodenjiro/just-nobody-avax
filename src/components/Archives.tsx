@@ -21,11 +21,11 @@ export const Archives: React.FC<ArchivesProps> = ({ visible, onClose }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
         >
-            <div className="w-[800px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg p-6 relative">
+            <div className="w-[800px] pixel-corners border border-nobody-gold/30 bg-nobody-charcoal shadow-card-lg p-6 relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
 
-                <h2 className="text-xl text-slate-900 font-bold mb-6 border-b border-slate-100 pb-3 flex items-center gap-2">
-                    <span className="text-nobody-violet">📂</span> Archives — Transaction Log
+                <h2 className="text-nobody-gold font-pixel text-xs mb-6 border-b border-nobody-gold/20 pb-3 flex items-center gap-2">
+                    <span>📂</span> [ ARCHIVES // TRANSACTION_LOG ]
                 </h2>
 
                 <div className="space-y-2">
@@ -36,11 +36,11 @@ export const Archives: React.FC<ArchivesProps> = ({ visible, onClose }) => {
                         <div>Status</div>
                     </div>
                     {history.map((tx) => (
-                        <div key={tx.id} className="grid grid-cols-5 text-sm p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors cursor-default">
+                        <div key={tx.id} className="grid grid-cols-5 text-sm p-3 pixel-corners-sm bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors cursor-default">
                             <div className="text-slate-400">#{tx.id}</div>
                             <div className="col-span-2 text-slate-900 font-semibold">{tx.item}</div>
                             <div className="text-slate-600">{tx.price}</div>
-                            <div className={`font-semibold ${tx.status === "SUCCESS" ? "text-nobody-mint" :
+                            <div className={`font-semibold ${tx.status === "SUCCESS" ? "text-nobody-primary" :
                                     tx.status === "SHREDDED" ? "text-slate-400 line-through" : "text-red-500"
                                 }`}>
                                 {tx.status}

@@ -25,22 +25,22 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[650px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden flex flex-col">
+            <div className="w-[650px] pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden flex flex-col">
 
                 {/* Header */}
-                <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center text-xs font-semibold">
-                    <div className="flex gap-4 text-nobody-mint">
-                        <span>💰 Shielded Wallet</span>
-                        <span className="text-slate-500">🔒 ZK-Compression: On</span>
+                <div className="bg-slate-50 p-3 border-b border-nobody-primary/20 flex justify-between items-center text-[10px] font-pixel">
+                    <div className="flex gap-4 text-nobody-primary">
+                        <span>[ 💰 SHIELDED WALLET ]</span>
+                        <span className="text-slate-500">🔒 ZK:ON</span>
                     </div>
-                    <span className="text-nobody-violet">⚡ Mesh Ready</span>
+                    <span className="text-nobody-gold">⚡ MESH READY</span>
                 </div>
 
                 {/* Main Content */}
                 <div className="p-6 space-y-6">
 
                     {/* Balance Section */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                    <div className="pixel-corners-sm border border-slate-200 bg-slate-50 p-4 space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="text-slate-500 text-sm">Available Balance</span>
                             <div
@@ -49,7 +49,7 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
                                 onMouseLeave={() => setRevealBalance(false)}
                             >
                                 {revealBalance ? (
-                                    <span className="text-nobody-mint font-bold text-xl tracking-wide">
+                                    <span className="text-nobody-primary font-bold text-xl tracking-wide">
                                         {balance}
                                     </span>
                                 ) : (
@@ -61,7 +61,7 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
                         </div>
                         <div className="text-[11px] text-slate-400 flex items-center gap-2">
                             (Hover to reveal)
-                            <span className="text-nobody-mint">All funds are ZK-proven & snapshot updated (2h ago)</span>
+                            <span className="text-nobody-primary">All funds are ZK-proven & snapshot updated (2h ago)</span>
                         </div>
                     </div>
 
@@ -71,8 +71,8 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
                             🛡️ Proof Generator
                         </div>
                         <ul className="text-xs space-y-1 text-slate-500">
-                            <li>Valid for Mesh Trades: <span className="text-nobody-mint font-semibold">Yes</span></li>
-                            <li>Last Integrity Check: <span className="text-nobody-mint font-semibold">Pass ✅</span></li>
+                            <li>Valid for Mesh Trades: <span className="text-nobody-primary font-semibold">Yes</span></li>
+                            <li>Last Integrity Check: <span className="text-nobody-primary font-semibold">Pass ✅</span></li>
                         </ul>
                     </div>
 
@@ -95,10 +95,10 @@ export const ShieldedWallet: React.FC<ShieldedWalletProps> = ({ visible, onClose
                 {/* Footer Actions */}
                 <div className="bg-slate-50 border-t border-slate-200 p-4 flex justify-between items-center text-xs">
                     <div className="flex gap-3">
-                        <button className="bg-nobody-charcoal hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition-colors font-semibold">
+                        <button className="bg-nobody-charcoal hover:bg-slate-100 text-slate-700 px-3 py-2 pixel-corners-sm border border-slate-200 transition-colors font-semibold">
                             Update Snapshot
                         </button>
-                        <button className="bg-nobody-mint-soft hover:bg-nobody-mint hover:text-white text-nobody-mint px-3 py-2 rounded-lg transition-colors font-semibold">
+                        <button className="bg-nobody-primary-soft hover:bg-nobody-primary hover:text-white text-nobody-primary px-3 py-2 pixel-corners-sm transition-colors font-semibold">
                             Add Funds
                         </button>
                     </div>

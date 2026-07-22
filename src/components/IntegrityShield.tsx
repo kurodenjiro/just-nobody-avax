@@ -53,30 +53,30 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
-                <div className="w-[600px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden p-6 relative">
+                <div className="w-[600px] pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden p-6 relative">
 
                     {/* Header */}
                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
                         <div className="flex gap-4">
-                            <span className="text-nobody-mint font-semibold">🔒 Integrity Shield</span>
+                            <span className="text-nobody-primary font-pixel text-[10px]">[ 🔒 INTEGRITY SHIELD ]</span>
                             <span className="text-slate-400 text-xs">Sender: Nobody_42a8</span>
                         </div>
-                        <span className="text-xs text-amber-400 animate-pulse font-semibold">⚡ Status: Verifying</span>
+                        <span className="text-xs text-amber-600 animate-pulse font-semibold">⚡ Status: Verifying</span>
                     </div>
 
                     {/* Visual Flow Animation */}
                     <div className="flex justify-between items-center mb-8 px-4 text-[11px] text-slate-400 font-semibold">
-                        <div className="border border-slate-200 rounded-lg p-2">Mesh Packet</div>
-                        <div className="text-nobody-mint animate-pulse">{"→ Decrypting →"}</div>
-                        <div className="border border-nobody-mint text-nobody-mint rounded-lg p-2">Noir ZK-Proof</div>
-                        <div className="text-nobody-mint animate-pulse">{"→ Checking →"}</div>
-                        <div className="border border-slate-200 rounded-lg p-2">Local Brain</div>
+                        <div className="border border-slate-200 pixel-corners-sm p-2">Mesh Packet</div>
+                        <div className="text-nobody-primary animate-pulse">{"→ Decrypting →"}</div>
+                        <div className="border border-nobody-primary text-nobody-primary pixel-corners-sm p-2">Noir ZK-Proof</div>
+                        <div className="text-nobody-primary animate-pulse">{"→ Checking →"}</div>
+                        <div className="border border-slate-200 pixel-corners-sm p-2">Local Brain</div>
                     </div>
 
                     {/* Progress Bar */}
                     <div className="h-1.5 bg-slate-100 rounded-full w-full mb-6 overflow-hidden">
                         <motion.div
-                            className="h-full bg-nobody-mint rounded-full"
+                            className="h-full bg-nobody-primary rounded-full"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -99,8 +99,8 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                                     <span className={`${step > i ? "text-slate-900" : "text-slate-400"}`}>{label}</span>
                                 </div>
                                 <div>
-                                    {step > i && <span className="text-nobody-mint font-semibold text-xs">✅</span>}
-                                    {step === i && <span className="text-amber-400 font-semibold text-xs animate-pulse">⏳</span>}
+                                    {step > i && <span className="text-nobody-primary font-semibold text-xs">✅</span>}
+                                    {step === i && <span className="text-amber-600 font-semibold text-xs animate-pulse">⏳</span>}
                                     {step < i && <span className="text-slate-300 font-semibold text-xs">...</span>}
                                 </div>
                             </motion.div>
@@ -108,16 +108,16 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                     </div>
 
                     {/* Security Log */}
-                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-3 text-xs space-y-1 font-mono text-slate-500 h-24 overflow-y-auto">
+                    <div className="bg-slate-50 pixel-corners-sm border border-slate-100 p-3 text-xs space-y-1 font-mono text-slate-500 h-24 overflow-y-auto">
                         <div className="text-slate-400 font-semibold mb-1 border-b border-slate-100 pb-1">🦈 Security Agent Log</div>
                         {step >= 1 && <div className="text-slate-600">"Detecting 2 relay hops. All headers stripped successfully."</div>}
                         {step >= 2 && <div className="text-slate-600">"Verifying ZK-Proof... Mathematical integrity confirmed."</div>}
-                        {step >= 3 && <div className="text-red-400">Warning: Node_7b tried to append metadata. Blocked & Discarded.</div>}
+                        {step >= 3 && <div className="text-red-600">Warning: Node_7b tried to append metadata. Blocked & Discarded.</div>}
                     </div>
 
                     {/* Footer Actions (Static for visual) */}
                     <div className="mt-4 flex gap-2">
-                        <button className="flex-1 bg-slate-100 text-slate-400 rounded-xl py-2 text-xs font-semibold cursor-not-allowed">
+                        <button className="flex-1 bg-slate-100 text-slate-400 pixel-corners-sm py-2 text-xs font-semibold cursor-not-allowed">
                             Unlock & Execute
                         </button>
                     </div>
@@ -126,9 +126,9 @@ export const IntegrityShield: React.FC<IntegrityShieldProps> = ({ visible, onCom
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="absolute inset-0 bg-nobody-charcoal/90 flex items-center justify-center backdrop-blur-sm z-20 rounded-2xl"
+                            className="absolute inset-0 bg-nobody-charcoal/90 flex items-center justify-center backdrop-blur-sm z-20 pixel-corners"
                         >
-                            <div className="text-nobody-mint text-lg font-bold tracking-wide border-2 border-nobody-mint rounded-xl p-4 bg-nobody-charcoal shadow-card-lg">
+                            <div className="text-nobody-primary text-lg font-bold tracking-wide border-2 border-nobody-primary pixel-corners-sm p-4 bg-nobody-charcoal shadow-card-lg">
                                 Data is pure & untouched
                             </div>
                         </motion.div>

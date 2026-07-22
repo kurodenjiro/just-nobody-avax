@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { formatEther } from "ethers";
+import { PixelSyncIcon, PixelShieldIcon, PixelTrashIcon, PixelPlusIcon } from "./icons/PixelIcons";
 
 interface WalletCabinetProps {
     visible: boolean;
@@ -128,14 +129,14 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[650px] max-h-[85vh] flex flex-col rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden">
+            <div className="w-[650px] max-h-[85vh] flex flex-col hud-frame border border-nobody-primary/20 bg-nobody-charcoal shadow-card-lg overflow-hidden text-nobody-primary">
 
                 {/* Header */}
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">
-                    <span className="text-slate-900 font-semibold tracking-wide">👛 Wallet Cabinet</span>
-                    <span className="text-slate-400">Mesh peers: {peerCount}</span>
+                <div className="bg-slate-50 px-5 py-3 border-b border-nobody-primary/20 flex justify-between items-center text-xs">
+                    <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">[ WALLET CABINET ]</span>
+                    <span className="text-slate-400">PEERS:{peerCount}</span>
                     <div className="flex items-center gap-3">
-                        <span className="text-nobody-mint font-medium">{bridgeStatus || "Instant Session Engine: Inactive"}</span>
+                        <span className="text-nobody-primary font-medium">{bridgeStatus || "Instant Session Engine: Inactive"}</span>
                         <button onClick={onOpenConfig} className="text-slate-400 hover:text-slate-700 transition-colors">⚙️</button>
                         <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
                     </div>
@@ -148,14 +149,14 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
                         {identities.map((id, index) => (
                             <div
                                 key={index}
-                                className={`p-4 rounded-xl border mb-2 transition-all cursor-pointer group ${selectedId === id.address || (selectedId === 'primary' && index === 0) ? 'border-nobody-mint bg-nobody-mint-soft/40' : 'border-slate-200 hover:bg-slate-50'}`}
+                                className={`p-4 pixel-corners-sm border mb-2 transition-all cursor-pointer group ${selectedId === id.address || (selectedId === 'primary' && index === 0) ? 'border-nobody-primary bg-nobody-primary-soft/40' : 'border-slate-200 hover:bg-slate-50'}`}
                                 onClick={() => setSelectedId(id.address)}
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-2.5 h-2.5 rounded-full ${selectedId === id.address || (selectedId === 'primary' && index === 0) ? 'bg-nobody-mint' : 'bg-slate-300'}`} />
+                                        <div className={`w-2.5 h-2.5 rounded-full ${selectedId === id.address || (selectedId === 'primary' && index === 0) ? 'bg-nobody-primary' : 'bg-slate-300'}`} />
                                         <div className="flex flex-col">
-                                            <span className="text-slate-900 font-semibold text-sm group-hover:text-nobody-mint transition-colors">
+                                            <span className="text-slate-900 font-semibold text-sm group-hover:text-nobody-primary transition-colors">
                                                 {id.emoji || "👻"} {id.alias}
                                             </span>
                                             <span className="text-[11px] text-slate-400 font-mono">
@@ -184,7 +185,7 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
                                                         e.stopPropagation(); // Prevent parent click
                                                         setRevealBalance(!revealBalance);
                                                     }}
-                                                    className="text-nobody-mint hover:underline font-semibold"
+                                                    className="text-nobody-primary hover:underline font-semibold"
                                                 >
                                                     {revealBalance && selectedId === 'primary' ?
                                                         `${snapshot ? snapshot.assets.length : 0} Items`
@@ -209,24 +210,25 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
 
                     {/* Actions */}
                     <div className="space-y-2">
-                        <div className="text-slate-400 text-xs font-semibold tracking-wide border-b border-slate-100 pb-2">
-                            Actions
+                        <div className="text-slate-400 text-[10px] font-pixel tracking-wide border-b border-nobody-primary/15 pb-2">
+                            [ ACTIONS ]
                         </div>
                         <div className="flex gap-2">
-                            <ActionButton label="+ Generate Identity" onClick={onAddNew} />
-                            <ActionButton label={syncing ? "Syncing..." : "Sync All"} onClick={handleSync} />
+                            <ActionButton label="Generate Identity" icon={<PixelPlusIcon size={14} />} onClick={onAddNew} />
+                            <ActionButton label={syncing ? "Syncing..." : "Sync All"} icon={<PixelSyncIcon size={14} />} onClick={handleSync} />
                             {/* Authority Delegation */}
                             <ActionButton
                                 label="Delegate Authority"
+                                icon={<PixelShieldIcon size={14} />}
                                 onClick={handleDelegate}
                             />
-                            <ActionButton label="Full Reset" danger onClick={handleDelete} />
+                            <ActionButton label="Full Reset" icon={<PixelTrashIcon size={14} />} danger onClick={handleDelete} />
                         </div>
                     </div>
 
                     {/* Agent Tip */}
-                    <div className="bg-nobody-mint-soft/40 border border-nobody-mint/20 rounded-xl p-3 text-xs text-slate-600">
-                        <span className="text-nobody-mint font-semibold">Agent:</span> "Ready to trade. Your PeerID is rotating every 24h to keep your wallet address hidden from the Mesh nodes."
+                    <div className="bg-nobody-primary-soft/40 border border-nobody-primary/20 pixel-corners-sm p-3 text-xs text-slate-600">
+                        <span className="text-nobody-primary font-semibold">Agent:</span> "Ready to trade. Your PeerID is rotating every 24h to keep your wallet address hidden from the Mesh nodes."
                     </div>
 
                 </div>
@@ -235,9 +237,9 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
                 <div className="bg-slate-50 border-t border-slate-200 p-3 flex justify-center items-center text-xs">
                     <button
                         onClick={onClose}
-                        className="bg-nobody-charcoal text-slate-500 font-semibold px-6 py-2 hover:text-slate-900 transition-colors rounded-full border border-slate-200 hover:border-slate-300 shadow-card"
+                        className="bg-nobody-charcoal text-slate-500 font-pixel text-[10px] px-6 py-2 hover:text-nobody-primary transition-colors pixel-corners-sm border border-slate-300 hover:border-nobody-primary shadow-card"
                     >
-                        ← Back
+                        [ BACK ]
                     </button>
                 </div>
             </div>
@@ -246,11 +248,12 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
 
 };
 
-const ActionButton = ({ label, danger = false, onClick }: { label: string, danger?: boolean, onClick?: () => void }) => (
+const ActionButton = ({ label, icon, danger = false, onClick }: { label: string, icon?: React.ReactNode, danger?: boolean, onClick?: () => void }) => (
     <button
         onClick={onClick}
-        className={`flex-1 rounded-xl border py-3 font-semibold text-xs transition-colors ${danger ? 'border-red-900/40 text-red-400 hover:bg-red-950/40' : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+        className={`flex-1 pixel-corners-sm border py-3 font-mono text-xs transition-all duration-150 hover:scale-[1.03] hover:shadow-card-lg flex flex-col items-center gap-1.5 ${danger ? 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500' : 'border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-nobody-primary hover:border-nobody-primary'}`}
     >
+        {icon}
         {label}
     </button>
 );

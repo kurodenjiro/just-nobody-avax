@@ -17,13 +17,13 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 50 }}
         >
-            <div className="border border-l-4 border-l-nobody-mint border-slate-200 bg-nobody-charcoal rounded-2xl shadow-card-lg overflow-hidden">
+            <div className="border border-l-4 border-l-nobody-primary border-slate-200 bg-nobody-charcoal pixel-corners shadow-card-lg overflow-hidden">
 
                 {/* Header */}
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <span className="animate-pulse text-lg">🔔</span>
-                        <span className="text-slate-900 text-xs font-semibold tracking-wide">Notification</span>
+                        <span className="text-nobody-primary text-[10px] font-pixel tracking-wide">[ NOTIFICATION ]</span>
                     </div>
                     <span className="text-[11px] text-slate-400">just now</span>
                 </div>
@@ -34,13 +34,13 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                         "Agent found a matching Buyer for 'Clueless Fox #04'"
                     </div>
 
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2 text-xs">
+                    <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-100 space-y-2 text-xs">
                         <div className="text-slate-400 font-semibold mb-2 border-b border-slate-100 pb-1">
                             📈 Deal Analysis
                         </div>
                         <div className="flex justify-between">
                             <span className="text-slate-500">Buyer</span>
-                            <span className="text-slate-900 font-semibold">Verified Nobody <span className="text-nobody-mint">(Rep: 99%)</span></span>
+                            <span className="text-slate-900 font-semibold">Verified Nobody <span className="text-nobody-primary">(Rep: 99%)</span></span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-slate-500">Price</span>
@@ -48,7 +48,7 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                         </div>
                         <div className="flex justify-between border-t border-slate-100 pt-2 mt-1">
                             <span className="text-slate-500">Net Profit</span>
-                            <span className="text-nobody-mint font-semibold">+1.5 AVAX</span>
+                            <span className="text-nobody-primary font-semibold">+1.5 AVAX</span>
                         </div>
                     </div>
 
@@ -60,13 +60,13 @@ export const DealNotification: React.FC<DealNotificationProps> = ({ visible, onC
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={onAccept}
-                                className="bg-nobody-mint text-white font-semibold py-2 text-xs rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1"
+                                className="bg-nobody-primary text-nobody-ink font-semibold py-2 text-xs pixel-corners-sm hover:brightness-125 transition-colors flex items-center justify-center gap-1"
                             >
                                 <span>✔ Accept & Mint</span>
                             </button>
                             <button
                                 onClick={onClose}
-                                className="bg-nobody-charcoal text-slate-400 font-semibold py-2 text-xs rounded-lg hover:bg-red-950/40 hover:text-red-400 transition-colors border border-slate-200 hover:border-red-900/50"
+                                className="bg-nobody-charcoal text-slate-400 font-semibold py-2 text-xs pixel-corners-sm hover:bg-red-50 hover:text-red-600 transition-colors border border-slate-200 hover:border-red-300"
                             >
                                 ✕ Reject
                             </button>

@@ -79,15 +79,15 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
         >
             {/* Header */}
             <div className="h-10 border-b border-slate-200 flex items-center justify-between px-4 bg-nobody-charcoal">
-                <div className="text-xs text-nobody-mint font-semibold tracking-wide">
+                <div className="text-xs text-nobody-primary font-semibold tracking-wide">
                     Mesh: 4ms | AI-Node: Active (x402)
                 </div>
                 <div className="flex gap-2 items-center">
                     <button onClick={onComplete} className="text-[11px] text-slate-400 hover:text-slate-900 mr-4 transition-colors">
                         End Chat
                     </button>
-                    <div className="w-2 h-2 rounded-full bg-nobody-mint animate-pulse" />
-                    <div className="w-2 h-2 rounded-full bg-nobody-violet animate-pulse delay-75" />
+                    <div className="w-2 h-2 rounded-full bg-nobody-primary animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-nobody-gold animate-pulse delay-75" />
                 </div>
             </div>
 
@@ -97,10 +97,10 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
                     <div key={msg.id} className="flex flex-col animate-fadeIn">
 
                         {msg.type === 'ai-separator' && (
-                            <div className="flex items-center gap-2 my-4 text-nobody-violet text-[11px] font-semibold justify-center opacity-80">
-                                <div className="h-px w-10 bg-nobody-violet/30" />
+                            <div className="flex items-center gap-2 my-4 text-nobody-gold text-[11px] font-semibold justify-center opacity-80">
+                                <div className="h-px w-10 bg-nobody-gold/30" />
                                 {msg.text}
-                                <div className="h-px w-10 bg-nobody-violet/30" />
+                                <div className="h-px w-10 bg-nobody-gold/30" />
                             </div>
                         )}
 
@@ -109,17 +109,17 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
                                 <div className="text-[11px] text-slate-400 mb-1">
                                     {msg.sender === 'User A' ? 'You' : msg.sender}
                                 </div>
-                                <div className={`px-3 py-2 rounded-2xl ${msg.sender === 'User A' ? 'bg-nobody-violet-soft text-nobody-ink' : 'bg-slate-100 text-slate-700'}`}>
+                                <div className={`px-3 py-2 pixel-corners ${msg.sender === 'User A' ? 'bg-nobody-gold-soft text-nobody-ink' : 'bg-slate-100 text-slate-700'}`}>
                                     {msg.text}
                                 </div>
                             </div>
                         )}
 
                         {msg.type === 'ai-msg' && (
-                            <div className="self-center w-[80%] bg-nobody-mint-soft/40 border border-nobody-mint/20 rounded-2xl p-3 my-2 text-xs flex items-start gap-2">
-                                <span className="text-nobody-mint shrink-0 mt-0.5"><CabalFigure size={16} /></span>
+                            <div className="self-center w-[80%] bg-nobody-primary-soft/40 border border-nobody-primary/20 pixel-corners p-3 my-2 text-xs flex items-start gap-2">
+                                <span className="text-nobody-primary shrink-0 mt-0.5"><CabalFigure size={16} /></span>
                                 <span>
-                                    <strong className="text-nobody-mint">AI: </strong>
+                                    <strong className="text-nobody-primary">AI: </strong>
                                     <span className="text-slate-600">{msg.text}</span>
                                 </span>
                             </div>
@@ -148,7 +148,7 @@ export const SmartMeshChat: React.FC<SmartMeshChatProps> = ({ visible, onComplet
 };
 
 const EscrowWidget = ({ data }: { data: any }) => (
-    <div className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card overflow-hidden">
+    <div className="pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card overflow-hidden">
         <div className="bg-slate-50 px-3 py-2 flex justify-between items-center border-b border-slate-100">
             <span className="text-[11px] font-semibold text-slate-900">Smart Escrow Widget</span>
         </div>
@@ -159,14 +159,14 @@ const EscrowWidget = ({ data }: { data: any }) => (
             </div>
             <div className="flex justify-between text-xs text-slate-500">
                 <span>Price:</span>
-                <span className="text-nobody-mint font-semibold">{data.price}</span>
+                <span className="text-nobody-primary font-semibold">{data.price}</span>
             </div>
 
             <div className="flex gap-2 mt-3 pt-2 border-t border-slate-100">
-                <button className="flex-1 bg-nobody-mint-soft text-nobody-mint text-[11px] font-semibold rounded-lg py-2 hover:bg-nobody-mint hover:text-white transition-colors">
+                <button className="flex-1 bg-nobody-primary-soft text-nobody-primary text-[11px] font-semibold pixel-corners-sm py-2 hover:bg-nobody-primary hover:text-white transition-colors">
                     User A: Deposit
                 </button>
-                <button className="flex-1 bg-slate-100 text-slate-500 text-[11px] font-semibold rounded-lg py-2 hover:bg-slate-200 hover:text-slate-900 transition-colors">
+                <button className="flex-1 bg-slate-100 text-slate-500 text-[11px] font-semibold pixel-corners-sm py-2 hover:bg-slate-200 hover:text-slate-900 transition-colors">
                     User B: Send
                 </button>
             </div>

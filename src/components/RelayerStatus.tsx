@@ -39,7 +39,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
     }, [isRelaying, activeConnections]);
 
     return (
-        <div className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card p-4 relative overflow-hidden">
+        <div className="pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card p-4 relative overflow-hidden">
             {/* Background Glow when Active */}
             <AnimatePresence>
                 {isRelaying && (
@@ -47,7 +47,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 0.06 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-nobody-mint z-0"
+                        className="absolute inset-0 bg-nobody-primary z-0"
                     />
                 )}
             </AnimatePresence>
@@ -55,14 +55,14 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
             <div className="relative z-10 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <div className={`w-2.5 h-2.5 rounded-full ${isRelaying ? "bg-nobody-mint animate-pulse" : "bg-slate-300"}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full ${isRelaying ? "bg-nobody-primary animate-pulse" : "bg-slate-300"}`} />
                         <span className="text-slate-900 font-semibold tracking-wide text-sm">Relayer Mode</span>
                     </div>
 
                     {/* Toggle Switch */}
                     <button
                         onClick={() => onToggle(!isRelaying)}
-                        className={`w-12 h-6 rounded-full p-1 transition-colors ${isRelaying ? "bg-nobody-mint" : "bg-slate-200"}`}
+                        className={`w-12 h-6 rounded-full p-1 transition-colors ${isRelaying ? "bg-nobody-primary" : "bg-slate-200"}`}
                     >
                         <motion.div
                             layout
@@ -76,11 +76,11 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
                     <div className="grid grid-cols-2 gap-4 pt-2">
                         <div>
                             <div className="text-slate-400 text-xs font-medium mb-1">Data Processed</div>
-                            <div className="text-nobody-mint font-mono font-semibold">{traffic}</div>
+                            <div className="text-nobody-primary font-mono font-semibold">{traffic}</div>
                         </div>
                         <div>
                             <div className="text-slate-400 text-xs font-medium mb-1">Relay Earnings</div>
-                            <div className="text-nobody-violet font-mono font-semibold">{earnings}</div>
+                            <div className="text-nobody-gold font-mono font-semibold">{earnings}</div>
                         </div>
                         <div className="col-span-2">
                             <div className="text-slate-400 text-xs font-medium mb-1">Active Hop Connections</div>
@@ -88,7 +88,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
                                 {[...Array(5)].map((_, i) => (
                                     <div
                                         key={i}
-                                        className={`flex-1 rounded-full transition-colors duration-300 ${i < activeConnections ? "bg-nobody-mint" : "bg-slate-100"}`}
+                                        className={`flex-1 rounded-full transition-colors duration-300 ${i < activeConnections ? "bg-nobody-primary" : "bg-slate-100"}`}
                                     />
                                 ))}
                             </div>

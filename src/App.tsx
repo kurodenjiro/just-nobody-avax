@@ -5,7 +5,9 @@ import "./styles.css";
 
 // Components
 import { Nexus } from "./components/Nexus";
-import { MeshRadar } from "./components/MeshRadar";
+import { MeshCharacterField } from "./components/MeshCharacterField";
+import { RadiantHalo } from "./components/RadiantHalo";
+import { AmbientParticles } from "./components/AmbientParticles";
 import { IntentComposer } from "./components/IntentComposer";
 import { AgentLog } from "./components/AgentLog";
 import { SmartMeshChat } from "./components/SmartMeshChat";
@@ -215,14 +217,16 @@ function App() {
     return (
         <ErrorBoundary>
             <Nexus isOnline={isOnline} peerCount={peers.length} showConfig={() => setShowConfig(true)}>
-                {/* Background Radar is always visible in Nexus mode */}
-                <MeshRadar peers={peers} />
+                {/* Background mesh scene is always visible in Nexus mode */}
+                <AmbientParticles />
+                <RadiantHalo />
+                <MeshCharacterField peers={peers} />
 
                 {/* Main Menu Bar */}
                 {view === "nexus" && (
                     <div className="absolute top-4 left-4 z-50 flex gap-2">
-                        <MenuButton label="MERCHANT" onClick={handleSwitchToProvider} active={false} color="nobody-mint" />
-                        <MenuButton label="WALLET" onClick={() => setView("wallet-cabinet")} active={false} color="nobody-mint" />
+                        <MenuButton label="MERCHANT" onClick={handleSwitchToProvider} active={false} color="nobody-primary" />
+                        <MenuButton label="WALLET" onClick={() => setView("wallet-cabinet")} active={false} color="nobody-primary" />
                     </div>
                 )}
 
@@ -338,19 +342,19 @@ function App() {
 // Helper Component for Menu Header
 const MenuButton = ({ label, onClick, color }: { label: string, onClick: () => void, active: boolean, color: string }) => {
     // Determine color classes
-    const colorClass = color === "nobody-mint" ? "text-nobody-mint border-nobody-mint/30 hover:bg-nobody-mint-soft" :
-        color === "nobody-violet" ? "text-nobody-violet border-nobody-violet/30 hover:bg-nobody-violet-soft" :
-            color === "yellow-500" ? "text-amber-400 border-amber-800/40 hover:bg-amber-950/40" :
-                color === "purple-500" ? "text-nobody-violet border-nobody-violet/30 hover:bg-nobody-violet-soft" :
-                    color === "green-500" ? "text-nobody-mint border-nobody-mint/30 hover:bg-nobody-mint-soft" :
+    const colorClass = color === "nobody-primary" ? "text-nobody-primary border-nobody-primary/30 hover:bg-nobody-primary-soft" :
+        color === "nobody-gold" ? "text-nobody-gold border-nobody-gold/30 hover:bg-nobody-gold-soft" :
+            color === "yellow-500" ? "text-amber-600 border-amber-200 hover:bg-amber-50" :
+                color === "purple-500" ? "text-nobody-gold border-nobody-gold/30 hover:bg-nobody-gold-soft" :
+                    color === "green-500" ? "text-nobody-primary border-nobody-primary/30 hover:bg-nobody-primary-soft" :
                         "text-slate-500 hover:text-slate-900 border-slate-200 hover:border-slate-300";
 
     return (
         <button
             onClick={onClick}
-            className={`text-xs font-semibold px-3 py-1.5 border rounded-full transition-all tracking-wide bg-nobody-charcoal shadow-card ${colorClass}`}
+            className={`text-[10px] font-pixel px-3 py-2 border transition-all tracking-wide bg-nobody-charcoal shadow-card pixel-corners-sm ${colorClass}`}
         >
-            {label}
+            [{label}]
         </button>
     );
 };

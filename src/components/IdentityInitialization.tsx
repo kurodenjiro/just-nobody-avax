@@ -46,21 +46,21 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <div className="w-[600px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg relative overflow-hidden">
+            <div className="w-[600px] pixel-corners border border-nobody-gold/30 bg-nobody-charcoal shadow-card-lg relative overflow-hidden">
 
                 {/* Ceremonial Emblem */}
                 <div className="flex flex-col items-center pt-8 pb-2">
-                    <div className="w-16 h-16 rounded-full bg-nobody-violet-soft/50 border border-nobody-violet/30 flex items-center justify-center text-nobody-violet shadow-glow animate-flicker">
+                    <div className="w-16 h-16 rounded-full bg-nobody-gold-soft/50 border border-nobody-gold/30 flex items-center justify-center text-nobody-gold shadow-glow animate-flicker">
                         <CabalFigure size={34} />
                     </div>
                     <div className="mt-3 text-[11px] tracking-[0.2em] text-slate-400 uppercase">A new Nobody enters the Cabal</div>
                 </div>
 
                 {/* Header */}
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex justify-between items-center text-xs">
-                    <span className="text-slate-900 font-semibold tracking-wide">🛡️ Identity Creation</span>
-                    <span className="text-slate-400">Mode: {mode === "create" ? "New" : "Import"}</span>
-                    <span className="text-nobody-mint font-medium">Security: High</span>
+                <div className="bg-slate-50 px-5 py-3 border-b border-nobody-gold/20 flex justify-between items-center text-xs">
+                    <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">[ IDENTITY CREATION ]</span>
+                    <span className="text-slate-400">MODE:{mode === "create" ? "NEW" : "IMPORT"}</span>
+                    <span className="text-nobody-primary font-pixel text-[10px]">SEC:HIGH</span>
                 </div>
 
                 <div className="p-8 space-y-8">
@@ -70,9 +70,9 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                         <button
                             onClick={() => setMode("create")}
                             disabled={step === "generating"}
-                            className={`flex-1 rounded-xl border p-4 text-left transition-colors group ${mode === "create" ? "border-nobody-mint bg-nobody-mint-soft/40" : "border-slate-200 hover:border-slate-300"} ${step === "generating" ? "opacity-50 cursor-not-allowed" : ""}`}
+                            className={`flex-1 pixel-corners-sm border p-4 text-left transition-colors group ${mode === "create" ? "border-nobody-primary bg-nobody-primary-soft/40" : "border-slate-200 hover:border-slate-300"} ${step === "generating" ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
-                            <div className={`font-semibold mb-1 ${mode === "create" ? "text-nobody-mint" : "text-slate-600 group-hover:text-slate-900"}`}>🆕 Generate New Identity</div>
+                            <div className={`font-semibold mb-1 ${mode === "create" ? "text-nobody-primary" : "text-slate-600 group-hover:text-slate-900"}`}>🆕 Generate New Identity</div>
                             <div className="text-xs text-slate-400">(Generate fresh ZK-keys)</div>
                         </button>
                     </div>
@@ -88,7 +88,7 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                                 onChange={(e) => setAlias(e.target.value)}
                                 placeholder="Name: The Clueless Fox"
                                 disabled={step === "generating"}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-nobody-mint focus:outline-none focus:bg-nobody-charcoal placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
+                                className="w-full bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-slate-900 focus:border-nobody-primary focus:outline-none focus:bg-nobody-charcoal placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
                             />
                             <div className="text-[11px] text-slate-400 text-right">(Local only — not leaked to Mesh)</div>
                         </div>
@@ -99,13 +99,13 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                                 type="password"
                                 placeholder="Password"
                                 disabled={step === "generating"}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:border-nobody-mint focus:outline-none focus:bg-nobody-charcoal placeholder-slate-400 disabled:bg-slate-100 transition-colors"
+                                className="w-full bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-slate-900 focus:border-nobody-primary focus:outline-none focus:bg-nobody-charcoal placeholder-slate-400 disabled:bg-slate-100 transition-colors"
                             />
                             <input
                                 type="text"
                                 placeholder="Hint: My first hardware..."
                                 disabled={step === "generating"}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 focus:border-slate-300 focus:outline-none placeholder-slate-400 text-xs disabled:bg-slate-100 transition-colors"
+                                className="w-full bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-slate-500 focus:border-slate-300 focus:outline-none placeholder-slate-400 text-xs disabled:bg-slate-100 transition-colors"
                             />
                         </div>
                     </div>
@@ -115,19 +115,19 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                     {/* Progression / Action */}
                     {step === "generating" ? (
                         <div className="space-y-4">
-                            <div className="text-nobody-mint font-semibold animate-pulse">⚙️ Generating crypto assets...</div>
+                            <div className="text-nobody-primary font-semibold animate-pulse">⚙️ Generating crypto assets...</div>
                             <ul className="text-xs space-y-2 text-slate-500">
                                 <li className="flex items-center justify-between">
                                     <span>Creating Avalanche Keypair...</span>
-                                    <span className={progress > 30 ? "text-nobody-mint font-medium" : "text-slate-300"}>{progress > 30 ? "Done" : "..."}</span>
+                                    <span className={progress > 30 ? "text-nobody-primary font-medium" : "text-slate-300"}>{progress > 30 ? "Done" : "..."}</span>
                                 </li>
                                 <li className="flex items-center justify-between">
                                     <span>Deriving Mesh PeerID...</span>
-                                    <span className={progress > 60 ? "text-nobody-mint font-medium" : "text-slate-300"}>{progress > 60 ? "Done" : "..."}</span>
+                                    <span className={progress > 60 ? "text-nobody-primary font-medium" : "text-slate-300"}>{progress > 60 ? "Done" : "..."}</span>
                                 </li>
                                 <li className="flex items-center justify-between">
                                     <span>Setting AES-256 Vault...</span>
-                                    <span className={progress >= 100 ? "text-nobody-mint font-medium" : "text-slate-300"}>{progress >= 100 ? "Done" : "..."}</span>
+                                    <span className={progress >= 100 ? "text-nobody-primary font-medium" : "text-slate-300"}>{progress >= 100 ? "Done" : "..."}</span>
                                 </li>
                             </ul>
 
@@ -135,16 +135,16 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    className="bg-nobody-mint-soft/50 border border-nobody-mint/20 rounded-xl p-3 text-xs text-slate-600 mt-4"
+                                    className="bg-nobody-primary-soft/50 border border-nobody-primary/20 pixel-corners-sm p-3 text-xs text-slate-600 mt-4"
                                 >
-                                    <span className="text-nobody-mint font-semibold">Agent:</span> "Your local identity is ready. Remember: Master Pass is the ONLY way to unlock your ZK-Proofs."
+                                    <span className="text-nobody-primary font-semibold">Agent:</span> "Your local identity is ready. Remember: Master Pass is the ONLY way to unlock your ZK-Proofs."
                                 </motion.div>
                             )}
 
                             {progress >= 100 && (
                                 <button
                                     onClick={onComplete}
-                                    className="w-full bg-nobody-mint text-white font-semibold py-3 rounded-xl hover:bg-emerald-700 transition-colors mt-4"
+                                    className="w-full bg-nobody-primary text-nobody-ink font-semibold py-3 pixel-corners-sm hover:brightness-125 transition-colors mt-4"
                                 >
                                     🚀 Initialize & Shred RAM
                                 </button>
@@ -154,13 +154,13 @@ export const IdentityInitialization: React.FC<IdentityInitializationProps> = ({ 
                         <div className="flex gap-4">
                             <button
                                 onClick={handleCreate}
-                                className="flex-1 bg-nobody-mint text-white font-semibold py-3 rounded-xl hover:bg-emerald-700 transition-colors"
+                                className="flex-1 bg-nobody-primary text-nobody-ink font-semibold py-3 pixel-corners-sm hover:brightness-125 transition-colors"
                             >
                                 {mode === "create" ? "Generate Identity" : "Restore from Seed"}
                             </button>
                             <button
                                 onClick={onBack}
-                                className="px-6 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors font-semibold"
+                                className="px-6 pixel-corners-sm border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors font-semibold"
                             >
                                 ← Back
                             </button>
