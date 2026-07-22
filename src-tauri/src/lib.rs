@@ -1,6 +1,7 @@
 mod app_initializer;
 mod mesh;
 mod agent;
+mod matcher;
 mod zk_handler;
 mod ollama_manager;
 mod blockchain_bridge;
@@ -8,9 +9,11 @@ mod blockchain_bridge;
 use app_initializer::SystemBootstrap;
 use mesh::{MeshNetwork, PrivacyIntent};
 use agent::{SharkAgent, SharkNegotiation};
+use matcher::{MatchAgent, MatchResult};
 use zk_handler::{ZKHandler, ProofRequest, ZKProof};
 use ollama_manager::OllamaManager;
-use blockchain_bridge::BlockchainBridge;
+use blockchain_bridge::{BlockchainBridge, AssetListingView, VoucherView, TxResult, QueuedTx};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 use tauri::{State, Manager, Emitter};
@@ -19,9 +22,11 @@ use tauri::{State, Manager, Emitter};
 pub struct AppState {
     pub mesh_tx: Option<mpsc::UnboundedSender<PrivacyIntent>>,
     pub agent: Arc<SharkAgent>,
+    pub matcher: Arc<MatchAgent>,
     pub zk_handler: Arc<ZKHandler>,
     pub ollama: Arc<OllamaManager>,
     pub bridge: Arc<Mutex<BlockchainBridge>>,
+    pub relay_bytes: Arc<AtomicU64>,
 }
 
 #[tauri::command]
@@ -31,23 +36,28 @@ async fn send_intent_to_mesh(
 ) -> Result<String, String> {
     let state_lock = state.lock().await;
     
-    // Check if payload is a settlement/deal message (contains "type" field)
+    // Check if payload is a settlement/deal/relay message (contains "type" field)
     if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&payload) {
-        if json_val.get("type").is_some() {
-            // This is a settlement/deal message, send as raw JSON
-            println!("📤 Sending settlement message: {}", payload);
+        if let Some(type_field) = json_val.get("type").and_then(|v| v.as_str()) {
+            // RelayTx/RelayConfirmed get their own outer intent_type so mesh.rs's
+            // receive handler can route them without inspecting the inner payload;
+            // everything else keeps the existing "settlement" wrapping behavior.
+            let intent_type = match type_field {
+                "RelayTx" => "relay_tx",
+                "RelayConfirmed" => "relay_confirmed",
+                _ => "settlement",
+            };
+            println!("📤 Sending {} message: {}", intent_type, payload);
             if let Some(tx) = &state_lock.mesh_tx {
-                // We need to broadcast this differently - it's not a PrivacyIntent
-                // For now, wrap it in a special intent type
                 let intent = PrivacyIntent {
-                    intent_type: "settlement".to_string(),
+                    intent_type: intent_type.to_string(),
                     payload: payload.clone(),
                     encrypted: false,
                     relay_path: vec!["origin_node".to_string()],
-                    relay_fee: None, // Settlements don't carry relay fees
+                    relay_fee: None, // Settlements/relay messages don't carry relay fees
                 };
                 tx.send(intent).map_err(|e| e.to_string())?;
-                return Ok(format!("Settlement message broadcasted: {}", payload));
+                return Ok(format!("{} message broadcasted: {}", intent_type, payload));
             } else {
                 return Err("Mesh network not initialized".to_string());
             }
@@ -143,7 +153,7 @@ async fn create_escrow(
     amount_avax: String,
     expiry_unix: Option<u64>,
     state: State<'_, Arc<Mutex<AppState>>>,
-) -> Result<u64, String> {
+) -> Result<TxResult, String> {
     let state = state.lock().await;
     let bridge = state.bridge.lock().await;
     let amount_wei = alloy::primitives::utils::parse_ether(&amount_avax).map_err(|e| e.to_string())?;
@@ -228,21 +238,186 @@ async fn get_identity(
 }
 
 #[tauri::command]
-async fn get_active_peers(
-    _state: State<'_, Arc<Mutex<AppState>>>,
-) -> Result<usize, String> {
-    Ok(0)
+async fn mint_voucher(
+    voucher_type: String,
+    description: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<u64, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.mint_voucher(&voucher_type, &description).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn generate_new_identity(
+async fn approve_voucher(
+    token_id: u64,
     state: State<'_, Arc<Mutex<AppState>>>,
-    alias: String, 
-    emoji: String, // Accept Emoji
-) -> Result<Vec<IdentityView>, String> {
+) -> Result<String, String> {
     let state = state.lock().await;
-    let mut bridge = state.bridge.lock().await;
-    bridge.generate_new_identity(alias, emoji).map_err(|e| e.to_string())
+    let bridge = state.bridge.lock().await;
+    bridge.approve_voucher(token_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn create_asset_listing(
+    description: String,
+    price_avax: String,
+    token_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<u64, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    let price_wei = alloy::primitives::utils::parse_ether(&price_avax).map_err(|e| e.to_string())?;
+    bridge.create_asset_listing(&description, price_wei, token_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_active_asset_listings(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<AssetListingView>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.get_active_asset_listings().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn buy_listing(
+    listing_id: u64,
+    price_avax: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<TxResult, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    let price_wei = alloy::primitives::utils::parse_ether(&price_avax).map_err(|e| e.to_string())?;
+    bridge.buy_listing(listing_id, price_wei).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn submit_raw_transaction(
+    raw_tx_hex: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<String, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.submit_raw_transaction(&raw_tx_hex).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_pending_relay_txs(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<QueuedTx>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    Ok(bridge.get_pending_relay_txs())
+}
+
+#[tauri::command]
+async fn mark_relay_tx_status(
+    queue_id: String,
+    status: String,
+    tx_hash: Option<String>,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.mark_relay_tx_status(&queue_id, &status, tx_hash).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn record_relayed_tx(
+    summary: String,
+    tx_hash: String,
+    reward_avax: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.record_relayed_tx(&summary, &tx_hash, &reward_avax).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_relayed_history(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<blockchain_bridge::RelayedTxRecord>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    Ok(bridge.get_relayed_history())
+}
+
+#[tauri::command]
+async fn release_deal(
+    deal_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<String, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.release_deal(deal_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn refund_deal(
+    deal_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<String, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.refund_deal(deal_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn redeem_voucher(
+    token_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<String, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.redeem_voucher(token_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_voucher_owner(
+    token_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<String, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.get_voucher_owner(token_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_owned_vouchers(
+    owner: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<VoucherView>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.get_owned_vouchers(&owner).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn match_intent_to_listings(
+    intent: String,
+    price_ceiling: f64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Option<MatchResult>, String> {
+    let state = state.lock().await;
+    let listings = {
+        let bridge = state.bridge.lock().await;
+        bridge.get_active_asset_listings().await.map_err(|e| e.to_string())?
+    };
+    state
+        .matcher
+        .match_intent(&intent, price_ceiling, &listings)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_relay_stats(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<u64, String> {
+    let state = state.lock().await;
+    Ok(state.relay_bytes.load(Ordering::Relaxed))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -310,6 +485,8 @@ pub fn run() {
                     Ok((mut mesh, intent_tx, mut event_rx, intent_rx, event_tx)) => {
                         println!("✅ System Bootstrap Complete. Mesh Swarm Active.");
 
+                        let relay_bytes = mesh.relay_bytes.clone();
+
                         // Start Mesh Loop (Background)
                         tokio::spawn(async move {
                             if let Err(e) = mesh.start(event_tx, intent_rx).await {
@@ -329,9 +506,11 @@ pub fn run() {
                         let state = Arc::new(Mutex::new(AppState {
                             mesh_tx: Some(intent_tx),
                             agent: Arc::new(SharkAgent::new(None)),
+                            matcher: Arc::new(MatchAgent::new(None)),
                             zk_handler: Arc::new(ZKHandler::new(None)),
                             ollama: ollama_state,
-                            bridge: bridge, 
+                            bridge: bridge,
+                            relay_bytes,
                         }));
 
                         app_handle.manage(state);
@@ -342,9 +521,11 @@ pub fn run() {
                         let state = Arc::new(Mutex::new(AppState {
                             mesh_tx: None,
                             agent: Arc::new(SharkAgent::new(None)),
+                            matcher: Arc::new(MatchAgent::new(None)),
                             zk_handler: Arc::new(ZKHandler::new(None)),
                             ollama: ollama_state,
                             bridge: bridge,
+                            relay_bytes: Arc::new(AtomicU64::new(0)),
                         }));
                         app_handle.manage(state);
                     }
@@ -368,8 +549,23 @@ pub fn run() {
             delete_wallet_snapshot,
             app_initializer::kill_switch,
             get_identity,
-            get_active_peers,
-            generate_new_identity
+            mint_voucher,
+            approve_voucher,
+            create_asset_listing,
+            get_active_asset_listings,
+            buy_listing,
+            release_deal,
+            refund_deal,
+            submit_raw_transaction,
+            get_pending_relay_txs,
+            mark_relay_tx_status,
+            record_relayed_tx,
+            get_relayed_history,
+            redeem_voucher,
+            get_voucher_owner,
+            get_owned_vouchers,
+            match_intent_to_listings,
+            get_relay_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

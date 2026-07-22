@@ -5,22 +5,38 @@ import { invoke } from "@tauri-apps/api/core";
 interface SmartEscrowProps {
     visible: boolean;
     escrowId: number | null;
+    /** "arsenal" deals (from a Marketplace buy()) use releaseDeal/refundDeal, which also
+     * move the voucher NFT. "p2p" deals (the mesh DealNotification demo) use the plain
+     * Escrow.sol release/refund. */
+    dealSource?: "arsenal" | "p2p";
     onClose: () => void;
     onRelease?: () => void;
+    itemLabel?: string;
+    priceLabel?: string;
 }
 
-export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onClose, onRelease }) => {
+export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dealSource = "p2p", onClose, onRelease, itemLabel = "NFT #04", priceLabel = "13.5 AVAX" }) => {
     const [released, setReleased] = useState(false);
     const [releasing, setReleasing] = useState(false);
+    const [refunding, setRefunding] = useState(false);
+    const [refunded, setRefunded] = useState(false);
     const [finality, setFinality] = useState<"pending" | "confirmed">("pending");
 
     useEffect(() => {
         if (visible) {
             setReleased(false);
             setReleasing(false);
+            setRefunding(false);
+            setRefunded(false);
             setFinality("pending");
 
-            if (escrowId != null) {
+            if (escrowId == null) return;
+
+            if (dealSource === "arsenal") {
+                // buy_listing already awaited the tx receipt before returning the
+                // deal id, so it's confirmed on-chain by the time we get here.
+                setFinality("confirmed");
+            } else {
                 invoke("get_escrow_status", { escrowId })
                     .then(() => setFinality("confirmed"))
                     .catch((e) => {
@@ -29,7 +45,7 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
                     });
             }
         }
-    }, [visible, escrowId]);
+    }, [visible, escrowId, dealSource]);
 
     const handleRelease = async () => {
         if (escrowId == null) {
@@ -39,7 +55,11 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
 
         setReleasing(true);
         try {
-            await invoke("release_escrow", { escrowId });
+            if (dealSource === "arsenal") {
+                await invoke("release_deal", { dealId: escrowId });
+            } else {
+                await invoke("release_escrow", { escrowId });
+            }
             setReleased(true);
             onRelease?.();
             setTimeout(() => {
@@ -53,6 +73,35 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
         }
     };
 
+    const handleRefund = async () => {
+        if (escrowId == null) {
+            alert("No on-chain escrow is associated with this deal.");
+            return;
+        }
+
+        if (!confirm("Refund this escrow back to your wallet? Only do this if you did not receive what was promised.")) {
+            return;
+        }
+
+        setRefunding(true);
+        try {
+            if (dealSource === "arsenal") {
+                await invoke("refund_deal", { dealId: escrowId });
+            } else {
+                await invoke("refund_escrow", { escrowId });
+            }
+            setRefunded(true);
+            setTimeout(() => {
+                onClose();
+            }, 2000);
+        } catch (e) {
+            console.error("On-chain refund failed:", e);
+            alert("On-chain refund failed: " + e);
+        } finally {
+            setRefunding(false);
+        }
+    };
+
     if (!visible) return null;
 
     return (
@@ -61,25 +110,25 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
         >
-            <div className="w-[700px] rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg p-8 relative">
+            <div className="w-[700px] pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card-lg p-8 relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
 
                 <div className="text-center mb-10">
-                    <div className="text-amber-400 text-xs font-semibold tracking-widest mb-2 uppercase">Smart Escrow Protocol</div>
+                    <div className="text-amber-600 text-xs font-semibold tracking-widest mb-2 uppercase">Smart Escrow Protocol</div>
                     <h1 className="text-2xl text-slate-900 font-bold">
-                        {released ? "Settlement Complete" : "Settlement In Progress"}
+                        {released ? "Settlement Complete" : refunded ? "Refunded" : "Settlement In Progress"}
                     </h1>
                 </div>
 
                 <div className="flex justify-between items-center mb-12 px-10">
                     {/* Left Vault */}
                     <div className="text-center">
-                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-amber-950/30 border border-amber-800/40">
+                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-amber-50 border border-amber-200">
                             💰
                         </div>
-                        <div className="text-slate-900 font-semibold">13.5 AVAX</div>
+                        <div className="text-slate-900 font-semibold">{priceLabel}</div>
                         <div className="text-xs text-slate-400 mt-1">
-                            {released ? "Released ✓" : "ZK-Vault Locked"}
+                            {released ? "Sent ✓" : refunded ? "Returned to you ✓" : "Payment Locked"}
                         </div>
                     </div>
 
@@ -89,51 +138,66 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, onC
                             <motion.div
                                 className="absolute top-1/2 -translate-y-1/2 w-full h-[2px] bg-amber-400"
                                 initial={{ scaleX: 0 }}
-                                animate={{ scaleX: released ? 1 : [0, 1] }}
-                                transition={{ duration: 2, repeat: released ? 0 : Infinity }}
+                                animate={{ scaleX: released || refunded ? 1 : [0, 1] }}
+                                transition={{ duration: 2, repeat: released || refunded ? 0 : Infinity }}
                             />
                         </div>
-                        <div className="mt-2 text-[11px] text-amber-400 font-medium">
-                            {released ? "Complete ✓" : <span className="animate-pulse">Verifying integrity...</span>}
+                        <div className="mt-2 text-[11px] text-amber-600 font-medium">
+                            {released ? "Complete ✓" : refunded ? "Refunded ✓" : <span className="animate-pulse">Verifying integrity...</span>}
                         </div>
                     </div>
 
                     {/* Right Vault */}
                     <div className="text-center">
-                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-nobody-violet-soft border border-nobody-violet/20">
+                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-nobody-gold-soft border border-nobody-gold/20">
                             🦊
                         </div>
-                        <div className="text-slate-900 font-semibold">NFT #04</div>
+                        <div className="text-slate-900 font-semibold">{itemLabel}</div>
                         <div className="text-xs text-slate-400 mt-1">
-                            {released ? "Transferred ✓" : "Mesh Proxy Held"}
+                            {released ? "Transferred ✓" : refunded ? "Deal cancelled" : "Item Held Safely"}
                         </div>
                     </div>
                 </div>
 
                 {/* Status Items */}
                 <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 flex justify-between items-center">
-                        <span className="text-slate-500 text-xs">Avalanche Finality</span>
-                        <span className={`text-xs font-semibold ${finality === "confirmed" ? "text-nobody-mint" : "text-slate-400"}`}>
-                            {finality === "confirmed" ? "Confirmed" : "Pending"}
+                    <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-200 flex justify-between items-center">
+                        <span className="text-slate-500 text-xs">Blockchain Confirmed</span>
+                        <span className={`text-xs font-semibold ${finality === "confirmed" ? "text-nobody-primary" : "text-slate-400"}`}>
+                            {finality === "confirmed" ? "Yes" : "Waiting..."}
                         </span>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 flex justify-between items-center">
-                        <span className="text-slate-500 text-xs">Mesh Signatures</span>
-                        <span className="text-nobody-mint text-xs font-semibold">Valid 3/3</span>
+                    <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-200 flex justify-between items-center">
+                        <span className="text-slate-500 text-xs">{dealSource === "arsenal" ? "Deal ID" : "Escrow ID"}</span>
+                        <span className="text-nobody-primary text-xs font-semibold">{escrowId != null ? `#${escrowId}` : "—"}</span>
                     </div>
                 </div>
 
-                <button
-                    onClick={handleRelease}
-                    disabled={released || releasing || escrowId == null}
-                    className={`w-full font-semibold py-3 rounded-xl transition-colors shadow-card ${released
-                        ? "bg-nobody-mint text-white cursor-default"
-                        : "bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                        }`}
-                >
-                    {released ? "✓ Funds Released" : releasing ? "Releasing..." : "Release Funds"}
-                </button>
+                <div className="space-y-2">
+                    <button
+                        onClick={handleRelease}
+                        disabled={released || releasing || refunding || refunded || escrowId == null}
+                        className={`w-full font-semibold py-3 pixel-corners-sm transition-colors shadow-card ${released
+                            ? "bg-nobody-primary text-nobody-ink cursor-default"
+                            : "bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
+                    >
+                        {released ? "✓ Funds Released" : releasing ? "Releasing..." : "Release Funds"}
+                    </button>
+
+                    {!released && (
+                        <button
+                            onClick={handleRefund}
+                            disabled={releasing || refunding || refunded || escrowId == null}
+                            className={`w-full font-semibold py-2.5 pixel-corners-sm transition-colors text-xs ${refunded
+                                ? "bg-slate-100 text-slate-500 cursor-default"
+                                : "border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                }`}
+                        >
+                            {refunded ? "✓ Refunded to your wallet" : refunding ? "Refunding..." : "Didn't get what you paid for? Refund"}
+                        </button>
+                    )}
+                </div>
 
             </div>
         </motion.div>

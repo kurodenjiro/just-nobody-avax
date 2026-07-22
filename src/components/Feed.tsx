@@ -43,15 +43,15 @@ export const Feed: React.FC = () => {
             </div>
 
             {/* Notification / Alert Area */}
-            <div className="bg-nobody-mint-soft/40 px-4 py-2 border-b border-slate-100 text-xs">
-                <span className="text-nobody-mint font-semibold">3 new tasks matching profile</span>
+            <div className="bg-nobody-primary-soft/40 px-4 py-2 border-b border-slate-100 text-xs">
+                <span className="text-nobody-primary font-semibold">3 new tasks matching profile</span>
                 <span className="ml-2 text-slate-400 italic"> {"<- Priority Alert from Agent"}</span>
             </div>
 
             {/* List Content */}
             <div className="p-4 space-y-4 overflow-y-auto flex-1 bg-slate-50">
                 {feedItems.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card overflow-hidden relative">
+                    <div key={item.id} className="pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card overflow-hidden relative">
                         {/* Header Line */}
                         <div className="bg-slate-50 px-3 py-1.5 flex justify-between items-center text-[11px] text-slate-500 border-b border-slate-100">
                             <span>
@@ -66,12 +66,12 @@ export const Feed: React.FC = () => {
                         <div className="p-3 text-sm text-slate-600">
                             {item.sub && <div className="text-xs text-slate-400 mb-1">{item.sub}</div>}
                             <div className="mb-2">"{item.content}"</div>
-                            {item.fee && <div className="text-nobody-mint font-semibold text-xs mb-2">💰 Proposal: {item.fee}</div>}
+                            {item.fee && <div className="text-nobody-primary font-semibold text-xs mb-2">💰 Proposal: {item.fee}</div>}
 
                             {/* Actions */}
                             <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100 border-dashed">
                                 {item.actions.map((action, i) => (
-                                    <button key={i} className="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 px-2 py-1 rounded-lg transition-colors">
+                                    <button key={i} className="text-[11px] text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-300 px-2 py-1 pixel-corners-sm transition-colors">
                                         {action}
                                     </button>
                                 ))}

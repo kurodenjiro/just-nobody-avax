@@ -1,29 +1,63 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { invoke } from "@tauri-apps/api/core";
 
 interface ServiceCreatorProps {
     onClose: () => void;
-    onDeploy: (service: any) => void;
+    onDeploy: (listingId: number) => void;
 }
 
-export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeploy }) => {
-    const [prompt, setPrompt] = useState("");
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [config, setConfig] = useState<any>(null);
+const VOUCHER_TYPES = ["AI Compute Credit", "Relay Bandwidth Credit", "Custom"];
 
-    const handleAnalyze = () => {
-        setIsAnalyzing(true);
-        // Simulate AI Agent Configuration
-        setTimeout(() => {
-            setConfig({
-                logic: "AI Generative Service (Local Stable Diffusion)",
-                price: "0.1 AVAX (Fixed)",
-                privacy: "Noir ZK-Proof Payment Verification (Enabled)",
-                delivery: "Encrypted Mesh Relay (Enabled)",
-                preview: "Anonymous AI Pixel Artist — 0.1 AVAX"
+type Step = "idle" | "minting" | "approving" | "listing" | "done";
+
+const STEP_LABEL: Record<Step, string> = {
+    idle: "",
+    minting: "Minting voucher NFT (proof of possession)...",
+    approving: "Approving Marketplace to hold the voucher...",
+    listing: "Creating on-chain listing...",
+    done: "Listed ✓",
+};
+
+export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeploy }) => {
+    const [voucherType, setVoucherType] = useState(VOUCHER_TYPES[0]);
+    const [customType, setCustomType] = useState("");
+    const [description, setDescription] = useState("");
+    const [priceAvax, setPriceAvax] = useState("");
+    const [step, setStep] = useState<Step>("idle");
+    const [error, setError] = useState<string | null>(null);
+
+    const effectiveType = voucherType === "Custom" ? customType.trim() : voucherType;
+    const isDeploying = step !== "idle" && step !== "done";
+    const canDeploy = effectiveType.length > 0 && description.trim().length > 0 && parseFloat(priceAvax) > 0 && !isDeploying;
+
+    const handleDeploy = async () => {
+        if (!canDeploy) return;
+        setError(null);
+        try {
+            setStep("minting");
+            const tokenId = await invoke<number>("mint_voucher", {
+                voucherType: effectiveType,
+                description: description.trim(),
             });
-            setIsAnalyzing(false);
-        }, 2000);
+
+            setStep("approving");
+            await invoke("approve_voucher", { tokenId });
+
+            setStep("listing");
+            const listingId = await invoke<number>("create_asset_listing", {
+                description: description.trim(),
+                priceAvax,
+                tokenId,
+            });
+
+            setStep("done");
+            onDeploy(listingId);
+        } catch (e) {
+            console.error("Failed to create asset-backed listing:", e);
+            setError("On-chain listing failed: " + e);
+            setStep("idle");
+        }
     };
 
     return (
@@ -33,82 +67,106 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
         >
-            <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden flex flex-col">
+            <div className="w-full max-w-2xl pixel-corners border border-slate-200 bg-nobody-charcoal shadow-card-lg overflow-hidden flex flex-col">
 
                 {/* Header */}
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
-                    <span className="text-nobody-violet font-semibold tracking-wide text-sm">✨ Create New Service</span>
+                    <span className="text-nobody-gold font-pixel tracking-wide text-[10px]">[ ✨ CREATE NEW LISTING ]</span>
                     <div className="flex gap-4 text-xs">
-                        <span className="text-slate-500">Mode: Provider</span>
-                        <span className="text-nobody-mint font-medium">🛡️ Privacy: Shielded</span>
+                        <span className="text-slate-500">Mode: Arsenal</span>
+                        <span className="text-nobody-primary font-medium">🛡️ On-chain: Fuji</span>
                     </div>
                 </div>
 
                 <div className="p-6 space-y-6">
 
-                    {/* Prompt Input */}
+                    {/* Voucher Type */}
                     <div className="space-y-2">
-                        <label className="text-slate-500 text-xs font-semibold">Service Prompt</label>
+                        <label className="text-slate-500 text-xs font-semibold">Voucher Type (mints a real NFT — proves you're the one offering it)</label>
+                        <div className="flex gap-2">
+                            {VOUCHER_TYPES.map((t) => (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setVoucherType(t)}
+                                    disabled={isDeploying}
+                                    className={`flex-1 text-xs font-semibold py-2 pixel-corners-sm border transition-colors ${voucherType === t ? "border-nobody-primary bg-nobody-primary-soft text-nobody-primary" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                        {voucherType === "Custom" && (
+                            <input
+                                type="text"
+                                value={customType}
+                                onChange={(e) => setCustomType(e.target.value)}
+                                disabled={isDeploying}
+                                placeholder="Custom voucher type name"
+                                className="w-full bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-sm text-slate-900 focus:border-nobody-primary focus:bg-nobody-charcoal outline-none transition-colors"
+                            />
+                        )}
+                    </div>
+
+                    {/* Description Input */}
+                    <div className="space-y-2">
+                        <label className="text-slate-500 text-xs font-semibold">What are you offering?</label>
                         <textarea
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            onBlur={() => !config && prompt && handleAnalyze()}
-                            placeholder='Example: "I want to sell an AI Pixel Art service for 0.1 AVAX per image..."'
-                            className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 focus:border-nobody-mint focus:bg-nobody-charcoal outline-none resize-none transition-colors"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            disabled={isDeploying}
+                            placeholder='Example: "1 hour of Ollama compute time over the mesh"'
+                            className="w-full h-24 bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-sm text-slate-900 focus:border-nobody-primary focus:bg-nobody-charcoal outline-none resize-none transition-colors"
                         />
                     </div>
 
-                    {/* Agent Config Output */}
-                    {(isAnalyzing || config) && (
-                        <div className="border-l-2 border-nobody-mint pl-4 space-y-2 transition-all">
-                            <div className="text-nobody-mint font-semibold text-xs animate-pulse">
-                                🤖 Agent configuring...
+                    {/* Price Input */}
+                    <div className="space-y-2">
+                        <label className="text-slate-500 text-xs font-semibold">Price (AVAX)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={priceAvax}
+                            onChange={(e) => setPriceAvax(e.target.value)}
+                            disabled={isDeploying}
+                            placeholder="0.1"
+                            className="w-full bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-sm text-slate-900 focus:border-nobody-primary focus:bg-nobody-charcoal outline-none transition-colors"
+                        />
+                    </div>
+
+                    {description && parseFloat(priceAvax) > 0 && step === "idle" && (
+                        <div className="bg-nobody-gold-soft pixel-corners-sm p-3 text-center text-sm text-nobody-gold font-semibold">
+                            Preview: "{effectiveType}" — "{description}" — {priceAvax} AVAX
+                        </div>
+                    )}
+
+                    {isDeploying && (
+                        <div className="border-l-2 border-nobody-primary pl-4 space-y-1">
+                            <div className="text-nobody-primary font-semibold text-xs animate-pulse">
+                                {STEP_LABEL[step]}
                             </div>
-
-                            {config ? (
-                                <div className="text-sm space-y-1 text-slate-600">
-                                    <div>Logic: <span className="text-slate-900 font-medium">{config.logic}</span></div>
-                                    <div>Price: <span className="text-slate-900 font-medium">{config.price}</span></div>
-                                    <div>Privacy: <span className="text-nobody-mint font-medium">{config.privacy}</span></div>
-                                    <div>Delivery: <span className="text-nobody-mint font-medium">{config.delivery}</span></div>
-                                </div>
-                            ) : (
-                                <div className="text-slate-400 text-sm">Analyzing intent semantics...</div>
-                            )}
+                            <div className="text-slate-400 text-[11px]">
+                                3 real on-chain transactions: mint → approve → list
+                            </div>
                         </div>
                     )}
 
-                    {/* Traits */}
-                    {config && (
-                        <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs">
-                            <div className="text-slate-500">🎨 Type: <span className="text-slate-900 font-medium">Digital Art</span></div>
-                            <div className="text-slate-500">🔒 Access: <span className="text-slate-900 font-medium">Private (ZK-Gated)</span></div>
-                            <div className="text-slate-500">⚡ Speed: <span className="text-slate-900 font-medium">Ultra (M4 Max)</span></div>
-                            <div className="text-slate-500">💰 Payout: <span className="text-slate-900 font-medium">Instant</span></div>
-                        </div>
-                    )}
-
-                    {/* Preview */}
-                    {config && (
-                        <div className="bg-nobody-violet-soft rounded-xl p-3 text-center text-sm text-nobody-violet font-semibold">
-                            Preview listing: "{config.preview}"
-                        </div>
+                    {error && (
+                        <div className="text-red-600 text-xs">{error}</div>
                     )}
                 </div>
 
                 {/* Footer Actions */}
                 <div className="border-t border-slate-200 p-4 flex justify-between bg-slate-50">
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors text-xs font-semibold">🗑️ Discard</button>
-                    <div className="flex gap-3">
-                        <button className="text-slate-500 hover:text-slate-900 transition-colors text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 bg-nobody-charcoal">⚙️ Advanced Setup</button>
-                        <button
-                            onClick={() => onDeploy(config)}
-                            disabled={!config}
-                            className={`text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors ${config ? 'bg-nobody-mint hover:bg-emerald-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                        >
-                            🚀 Deploy to Mesh
-                        </button>
-                    </div>
+                    <button onClick={onClose} disabled={isDeploying} className="text-slate-400 hover:text-slate-700 transition-colors text-xs font-semibold disabled:opacity-50">🗑️ Discard</button>
+                    <button
+                        onClick={handleDeploy}
+                        disabled={!canDeploy}
+                        className={`text-white text-xs font-semibold px-4 py-2 pixel-corners-sm transition-colors ${canDeploy ? 'bg-nobody-primary hover:brightness-125' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                    >
+                        {isDeploying ? STEP_LABEL[step] : "🚀 Mint & List"}
+                    </button>
                 </div>
 
             </div>
