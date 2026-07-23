@@ -133,7 +133,14 @@ function App() {
     useEffect(() => { isRelayingRef.current = isRelaying; }, [isRelaying]);
 
     useEffect(() => {
-        invoke<QueuedTx[]>("get_pending_relay_txs").then(setOfflineQueue).catch(console.error);
+        // Drop any queued tx whose nonce has already been superseded on-chain
+        // (e.g. a leftover from an earlier session) before showing the queue —
+        // those can never be mined and would otherwise sit "queued" forever.
+        invoke("prune_stale_relay_txs")
+            .catch((e) => console.error("Failed to prune stale relay txs:", e))
+            .finally(() => {
+                invoke<QueuedTx[]>("get_pending_relay_txs").then(setOfflineQueue).catch(console.error);
+            });
     }, []);
 
     // A queued tx originally failed because the RPC timed out for ~6s — that's
@@ -147,6 +154,18 @@ function App() {
 
     useEffect(() => {
         const retryQueued = async () => {
+            // Re-check for staleness on every tick, not just at mount — a
+            // transient RPC failure at startup shouldn't leave a permanently
+            // dead (nonce-superseded) tx stuck retrying forever.
+            try {
+                const pruned = await invoke<number>("prune_stale_relay_txs");
+                if (pruned > 0) {
+                    invoke<QueuedTx[]>("get_pending_relay_txs").then(setOfflineQueue).catch(console.error);
+                }
+            } catch (e) {
+                console.error("Failed to prune stale relay txs:", e);
+            }
+
             for (const item of offlineQueueRef.current) {
                 if (item.status !== "queued") continue;
                 try {
