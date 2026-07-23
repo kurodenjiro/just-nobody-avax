@@ -331,6 +331,13 @@ async fn get_pending_relay_txs(
 }
 
 #[tauri::command]
+async fn prune_stale_relay_txs(state: State<'_, Arc<Mutex<AppState>>>) -> Result<usize, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.prune_stale_relay_txs().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn mark_relay_tx_status(
     queue_id: String,
     status: String,
@@ -680,6 +687,7 @@ pub fn run() {
             refund_deal,
             submit_raw_transaction,
             get_pending_relay_txs,
+            prune_stale_relay_txs,
             mark_relay_tx_status,
             record_relayed_tx,
             get_relayed_history,

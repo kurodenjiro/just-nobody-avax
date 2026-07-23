@@ -2,13 +2,11 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { formatEther } from "ethers";
-import { PixelShieldIcon } from "./icons/PixelIcons";
 import { PixelClassIcon } from "./icons/PixelClassIcon";
 
 interface WalletCabinetProps {
     visible: boolean;
     onClose: () => void;
-    onDelegate: () => void;
     peerCount?: number;
 }
 
@@ -31,7 +29,7 @@ interface IdentityView {
     address: string;
 }
 
-export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, onDelegate, peerCount = 0 }) => {
+export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, peerCount = 0 }) => {
     const [bridgeStatus, setBridgeStatus] = useState<string | null>(null);
     const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
     const [identity, setIdentity] = useState<IdentityView | null>(null);
@@ -164,11 +162,6 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
         }
     };
 
-    const handleDelegate = async () => {
-        // Trigger navigation to DelegationCenter
-        onDelegate();
-    };
-
     if (!visible) return null;
 
     const nativeBalance = snapshot?.assets?.find((a) => a.symbol === "AVAX");
@@ -219,14 +212,6 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
                             </button>
                         </div>
                     </div>
-
-                    {/* Primary action — one clear, prominent next step */}
-                    <button
-                        onClick={handleDelegate}
-                        className="w-full flex items-center justify-center gap-2 bg-nobody-primary text-nobody-ink font-semibold py-3.5 pixel-corners-sm hover:brightness-125 transition-all hover:scale-[1.01] shadow-card"
-                    >
-                        <PixelShieldIcon size={16} /> Let My Agent Trade For Me
-                    </button>
 
                     {/* Danger zone — visually separated and de-emphasized so it's never confused with a normal action */}
                     <div className="pt-2 border-t border-slate-100 space-y-2">

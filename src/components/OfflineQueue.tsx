@@ -46,7 +46,7 @@ export const OfflineQueue: React.FC<OfflineQueueProps> = ({ items, onDismiss }) 
                             <div className="text-slate-400 text-[11px] truncate">
                                 {item.status === "queued" && "Awaiting a fellow traveler with network to carry this onward..."}
                                 {item.status === "confirmed" && (item.tx_hash ? `⚔️ Delivered: ${item.tx_hash.slice(0, 10)}...` : "⚔️ Delivered on-chain")}
-                                {item.status === "failed" && "Delivery failed — try again once you have network"}
+                                {item.status === "failed" && (item.reason || "Delivery failed — try again once you have network")}
                             </div>
                         </div>
 

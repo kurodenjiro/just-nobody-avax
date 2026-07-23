@@ -84,6 +84,9 @@ export interface QueuedTx {
     created_at: string;
     status: "queued" | "confirmed" | "failed";
     tx_hash: string | null;
+    /** Set when a failure is permanent (e.g. a stale/superseded nonce) — show
+     * this instead of the generic "try again once online" message. */
+    reason?: string | null;
 }
 
 /** A piece of content (e.g. a book page) committed to by its seller: a real

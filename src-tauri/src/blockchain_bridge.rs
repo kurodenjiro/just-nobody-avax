@@ -6,7 +6,8 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 // Crypto Imports
 use alloy::{
-    eips::eip2718::Encodable2718,
+    consensus::{Transaction as _, TxEnvelope},
+    eips::eip2718::{Decodable2718, Encodable2718},
     network::{EthereumWallet, TransactionBuilder},
     primitives::{keccak256, Address, Bytes, Signature, U256},
     providers::{Provider, ProviderBuilder},
@@ -138,6 +139,10 @@ pub struct QueuedTx {
     pub created_at: DateTime<Utc>,
     pub status: String, // "queued" | "confirmed" | "failed"
     pub tx_hash: Option<String>,
+    /// Set when a failure is permanent (e.g. a stale/superseded nonce) so the
+    /// UI can say so instead of suggesting a retry that can never succeed.
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 /// A transaction this node successfully relayed to the chain on behalf of
@@ -430,6 +435,7 @@ impl BlockchainBridge {
             created_at: Utc::now(),
             status: "queued".to_string(),
             tx_hash: None,
+            reason: None,
         };
 
         let mut pending = self.load_pending_relay_txs();
@@ -451,6 +457,41 @@ impl BlockchainBridge {
 
         println!("✅ [Bridge] Relayed transaction confirmed. Tx: {:?}", receipt.transaction_hash);
         Ok(format!("{:?}", receipt.transaction_hash))
+    }
+
+    /// Detects queued relay txs whose nonce has already been superseded
+    /// on-chain (by a different, already-confirmed tx from the same
+    /// signer) — such a tx can never be mined and would otherwise sit
+    /// "queued" forever, retried for nothing every few seconds. Marks them
+    /// "failed" instead, which also makes them dismissible in the UI.
+    pub async fn prune_stale_relay_txs(&self) -> Result<usize, Box<dyn Error>> {
+        let signer_address = self.get_primary_address();
+        if signer_address == "unknown" {
+            return Ok(0);
+        }
+        let addr = Address::from_str(&signer_address)?;
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let current_nonce = provider.get_transaction_count(addr).await?;
+
+        let mut pending = self.load_pending_relay_txs();
+        let mut pruned = 0;
+        for tx in pending.iter_mut() {
+            if tx.status != "queued" {
+                continue;
+            }
+            let hex_str = tx.raw_tx_hex.trim_start_matches("0x");
+            let Ok(raw_bytes) = hex::decode(hex_str) else { continue };
+            let Ok(envelope) = TxEnvelope::decode_2718(&mut raw_bytes.as_slice()) else { continue };
+            if envelope.nonce() < current_nonce {
+                tx.status = "failed".to_string();
+                tx.reason = Some("Superseded by a later transaction from this wallet — safe to dismiss, retrying won't help".to_string());
+                pruned += 1;
+            }
+        }
+        if pruned > 0 {
+            self.save_pending_relay_txs(&pending)?;
+        }
+        Ok(pruned)
     }
 
     pub fn get_pending_relay_txs(&self) -> Vec<QueuedTx> {
