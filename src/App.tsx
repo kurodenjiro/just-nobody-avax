@@ -221,6 +221,8 @@ function App() {
                     return;
                 }
 
+                setNotification(`📡 Relaying a transaction for a peer: ${summary || "unknown"}...`);
+
                 try {
                     const txHash = await invoke<string>("submit_raw_transaction", { rawTxHex });
                     console.log("✅ Relayed transaction for peer:", queueId, txHash);
@@ -232,11 +234,13 @@ function App() {
                     // (bytes relayed × the same rate Relay Mode's own stats use), not an actual payout.
                     const rewardAvax = ((rawTxHex.replace(/^0x/, "").length / 2) * RATE_PER_BYTE_AVAX).toFixed(6);
                     invoke("record_relayed_tx", { summary, txHash, rewardAvax }).catch(console.error);
+                    setNotification(`✅ Relayed "${summary || "a transaction"}" for a peer! (+${rewardAvax} AVAX est.)`);
                 } catch (e) {
                     console.error("Failed to relay transaction:", e);
                     invoke("send_intent_to_mesh", {
                         payload: JSON.stringify({ type: "RelayConfirmed", queue_id: queueId, status: "failed" }),
                     }).catch(console.error);
+                    setNotification(`⚠️ Failed to relay "${summary || "a transaction"}" for a peer.`);
                 }
 
             } else if (meshEvent.type === "RelayConfirmed") {

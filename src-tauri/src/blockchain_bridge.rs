@@ -462,8 +462,10 @@ impl BlockchainBridge {
     /// Detects queued relay txs whose nonce has already been superseded
     /// on-chain (by a different, already-confirmed tx from the same
     /// signer) — such a tx can never be mined and would otherwise sit
-    /// "queued" forever, retried for nothing every few seconds. Marks them
-    /// "failed" instead, which also makes them dismissible in the UI.
+    /// "queued" forever, retried for nothing every few seconds. These are
+    /// removed from the queue entirely rather than surfaced as a "failed"
+    /// entry — there's nothing actionable for the user to do about a
+    /// nonce that's already gone.
     pub async fn prune_stale_relay_txs(&self) -> Result<usize, Box<dyn Error>> {
         let signer_address = self.get_primary_address();
         if signer_address == "unknown" {
@@ -474,20 +476,17 @@ impl BlockchainBridge {
         let current_nonce = provider.get_transaction_count(addr).await?;
 
         let mut pending = self.load_pending_relay_txs();
-        let mut pruned = 0;
-        for tx in pending.iter_mut() {
+        let before = pending.len();
+        pending.retain(|tx| {
             if tx.status != "queued" {
-                continue;
+                return true;
             }
             let hex_str = tx.raw_tx_hex.trim_start_matches("0x");
-            let Ok(raw_bytes) = hex::decode(hex_str) else { continue };
-            let Ok(envelope) = TxEnvelope::decode_2718(&mut raw_bytes.as_slice()) else { continue };
-            if envelope.nonce() < current_nonce {
-                tx.status = "failed".to_string();
-                tx.reason = Some("Superseded by a later transaction from this wallet — safe to dismiss, retrying won't help".to_string());
-                pruned += 1;
-            }
-        }
+            let Ok(raw_bytes) = hex::decode(hex_str) else { return true };
+            let Ok(envelope) = TxEnvelope::decode_2718(&mut raw_bytes.as_slice()) else { return true };
+            envelope.nonce() >= current_nonce
+        });
+        let pruned = before - pending.len();
         if pruned > 0 {
             self.save_pending_relay_txs(&pending)?;
         }

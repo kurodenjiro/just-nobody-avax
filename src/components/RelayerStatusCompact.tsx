@@ -24,7 +24,7 @@ interface RelayedTxRecord {
  */
 export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRelaying, onToggle, peerCount = 0 }) => {
     const [showInfo, setShowInfo] = useState(false);
-    const { traffic, earnings } = useRelayStats(isRelaying);
+    const { traffic, earnings, boostMultiplier } = useRelayStats(isRelaying);
     const activeConnections = Math.min(peerCount, 5);
     const [history, setHistory] = useState<RelayedTxRecord[]>([]);
 
@@ -74,6 +74,9 @@ export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRe
                             <div className="space-y-2">
                                 <div className="flex justify-between"><span className="text-slate-400">Data Processed</span><span className="text-nobody-primary font-mono font-semibold">{traffic}</span></div>
                                 <div className="flex justify-between"><span className="text-slate-400">Relay Earnings</span><span className="text-nobody-gold font-mono font-semibold">{earnings}</span></div>
+                                {boostMultiplier > 1 && (
+                                    <div className="flex justify-between"><span className="text-slate-400">⚡ Item Boost</span><span className="text-nobody-gold font-mono font-semibold">{boostMultiplier.toFixed(2)}x</span></div>
+                                )}
                                 <div className="flex justify-between"><span className="text-slate-400">Connections</span><span className="text-slate-900 font-semibold">{activeConnections}</span></div>
                             </div>
                         ) : (
