@@ -15,6 +15,7 @@ export const TradingPostPanel: React.FC<TradingPostPanelProps> = ({ refreshKey, 
     const [listings, setListings] = useState<AssetListingView[]>([]);
     const [myAddress, setMyAddress] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<string>("");
+    const [expanded, setExpanded] = useState(false);
 
     const load = useCallback(() => {
         invoke<AssetListingView[]>("get_active_asset_listings")
@@ -55,16 +56,27 @@ export const TradingPostPanel: React.FC<TradingPostPanelProps> = ({ refreshKey, 
     const selectedListing = buyableListings.find((l) => String(l.id) === selectedId) ?? null;
 
     return (
-        <div className="absolute top-28 left-6 w-72 z-20 hud-frame border border-slate-200 bg-nobody-charcoal shadow-card p-3">
-            <div className="w-full text-left mb-2">
-                <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">🗡️ TRADING POST ({buyableListings.length})</span>
-                <div className="text-slate-400 text-[10px] mt-0.5">Items other sellers have listed — not yours</div>
+        <div className={`absolute top-28 left-6 z-20 hud-frame border border-slate-200 bg-nobody-charcoal shadow-card p-3 transition-all ${expanded ? "w-[26rem]" : "w-72"}`}>
+            <div className="w-full flex items-start justify-between mb-2 gap-2">
+                <div>
+                    <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">🗡️ TRADING POST ({buyableListings.length})</span>
+                    <div className="text-slate-400 text-[10px] mt-0.5">Items other sellers have listed — not yours</div>
+                </div>
+                {buyableListings.length > 5 && (
+                    <button
+                        onClick={() => setExpanded((v) => !v)}
+                        className="text-slate-400 hover:text-nobody-gold text-[10px] transition-colors shrink-0"
+                        title={expanded ? "Collapse" : "Expand to see more"}
+                    >
+                        {expanded ? "⤡ Collapse" : "⤢ Expand"}
+                    </button>
+                )}
             </div>
             {buyableListings.length === 0 ? (
                 <div className="text-slate-400 text-xs italic">No active listings yet.</div>
             ) : (
-                <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                    {buyableListings.slice(0, 5).map((l) => (
+                <div className={`space-y-1.5 overflow-y-auto transition-all ${expanded ? "max-h-[32rem]" : "max-h-56"}`}>
+                    {buyableListings.slice(0, expanded ? undefined : 5).map((l) => (
                         <ItemCard
                             key={l.id}
                             icon="🎫"

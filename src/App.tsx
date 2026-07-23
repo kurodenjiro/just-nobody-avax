@@ -528,7 +528,6 @@ function App() {
                 <WalletCabinet
                     visible={view === "wallet-cabinet"}
                     onClose={() => setView("nexus")}
-                    onDelegate={() => setView("delegation")}
                     peerCount={peers.length}
                 />
 

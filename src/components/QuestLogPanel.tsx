@@ -21,6 +21,7 @@ function statusIcon(status: DealView["status"]) {
  * no separate "Arsenal Mode" page needed just to see what's in progress. */
 export const QuestLogPanel: React.FC<QuestLogPanelProps> = ({ refreshKey, onOpenDeal }) => {
     const [deals, setDeals] = useState<DealView[]>([]);
+    const [expanded, setExpanded] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -42,15 +43,24 @@ export const QuestLogPanel: React.FC<QuestLogPanelProps> = ({ refreshKey, onOpen
     }, [load, refreshKey]);
 
     return (
-        <div className="absolute top-28 right-6 w-72 z-20 hud-frame border border-slate-200 bg-nobody-charcoal shadow-card p-3">
-            <div className="w-full text-left mb-2">
+        <div className={`absolute top-28 right-6 z-20 hud-frame border border-slate-200 bg-nobody-charcoal shadow-card p-3 transition-all ${expanded ? "w-[26rem]" : "w-72"}`}>
+            <div className="w-full flex items-center justify-between mb-2">
                 <span className="text-nobody-primary font-pixel text-[10px] tracking-wide">📜 QUEST LOG</span>
+                {deals.length > 5 && (
+                    <button
+                        onClick={() => setExpanded((v) => !v)}
+                        className="text-slate-400 hover:text-nobody-primary text-[10px] transition-colors"
+                        title={expanded ? "Collapse" : "Expand to see more"}
+                    >
+                        {expanded ? "⤡ Collapse" : "⤢ Expand"}
+                    </button>
+                )}
             </div>
             {deals.length === 0 ? (
                 <div className="text-slate-400 text-xs italic">No deals yet — matched buys/sells show up here.</div>
             ) : (
-                <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                    {deals.slice(-5).reverse().map((d) => {
+                <div className={`space-y-1.5 overflow-y-auto transition-all ${expanded ? "max-h-[32rem]" : "max-h-56"}`}>
+                    {deals.slice(expanded ? -deals.length : -5).reverse().map((d) => {
                         const counterparty = d.role === "seller" ? d.buyer : d.seller;
                         const canRelease = d.role === "buyer" && d.status === "active" && onOpenDeal;
                         const Wrapper = canRelease ? "button" : "div";
