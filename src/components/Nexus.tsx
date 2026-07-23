@@ -3,10 +3,11 @@ import React from "react";
 interface StatusIndicatorProps {
     isOnline: boolean;
     peerCount: number;
+    aiReady: boolean;
     showConfig: () => void;
 }
 
-export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({ children, isOnline, peerCount, showConfig }) => {
+export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({ children, isOnline, peerCount, aiReady, showConfig }) => {
     return (
         <div className="h-screen w-screen bg-nobody-dark overflow-hidden flex flex-col relative font-sans text-slate-900 selection:bg-nobody-primary-soft selection:text-nobody-ink">
             <div className="absolute top-4 right-4 flex gap-2 z-30">
@@ -19,6 +20,12 @@ export const Nexus: React.FC<React.PropsWithChildren<StatusIndicatorProps>> = ({
                 <StatusItem
                     icon="👥"
                     label={`${peerCount} PEERS`}
+                />
+
+                <StatusItem
+                    icon={aiReady ? "🤖" : "💤"}
+                    label={aiReady ? "AI READY" : "AI OFFLINE"}
+                    textColor={aiReady ? "text-nobody-primary" : "text-slate-400"}
                 />
 
                 <button

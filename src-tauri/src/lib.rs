@@ -39,12 +39,14 @@ async fn send_intent_to_mesh(
     // Check if payload is a settlement/deal/relay message (contains "type" field)
     if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&payload) {
         if let Some(type_field) = json_val.get("type").and_then(|v| v.as_str()) {
-            // RelayTx/RelayConfirmed get their own outer intent_type so mesh.rs's
-            // receive handler can route them without inspecting the inner payload;
-            // everything else keeps the existing "settlement" wrapping behavior.
+            // These get their own outer intent_type so mesh.rs's receive handler can
+            // route them without inspecting the inner payload; everything else keeps
+            // the existing "settlement" wrapping behavior.
             let intent_type = match type_field {
                 "RelayTx" => "relay_tx",
                 "RelayConfirmed" => "relay_confirmed",
+                "ContentRequest" => "content_request",
+                "ContentDelivery" => "content_delivery",
                 _ => "settlement",
             };
             println!("📤 Sending {} message: {}", intent_type, payload);
@@ -395,6 +397,90 @@ async fn get_owned_vouchers(
 }
 
 #[tauri::command]
+async fn get_my_deals(
+    address: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<blockchain_bridge::DealView>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.get_my_deals(&address).await.map_err(|e| e.to_string())
+}
+
+/// Real status of the local Ollama model the Shark Agent / matcher depend on —
+/// pings its local API rather than assuming it's ready just because it auto-started.
+#[tauri::command]
+async fn get_ollama_status(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<bool, String> {
+    let state = state.lock().await;
+    Ok(state.ollama.health_check().await)
+}
+
+#[tauri::command]
+async fn extract_pdf_text(
+    pdf_bytes: Vec<u8>,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<String, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.extract_pdf_text(pdf_bytes).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn sign_content(
+    text: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<blockchain_bridge::ContentRecord, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.sign_content(&text).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn store_content(
+    token_id: u64,
+    record: blockchain_bridge::ContentRecord,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.store_content(token_id, record).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_content(
+    token_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Option<blockchain_bridge::ContentRecord>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    Ok(bridge.get_content(token_id))
+}
+
+#[tauri::command]
+async fn receive_content(
+    token_id: u64,
+    text: String,
+    signature: String,
+    expected_seller: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<bool, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    bridge.receive_content(token_id, &text, &signature, &expected_seller).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_received_content(
+    token_id: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Option<blockchain_bridge::ContentRecord>, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    Ok(bridge.get_received_content(token_id))
+}
+
+#[tauri::command]
 async fn match_intent_to_listings(
     intent: String,
     price_ceiling: f64,
@@ -564,6 +650,14 @@ pub fn run() {
             redeem_voucher,
             get_voucher_owner,
             get_owned_vouchers,
+            get_my_deals,
+            get_ollama_status,
+            extract_pdf_text,
+            sign_content,
+            store_content,
+            get_content,
+            receive_content,
+            get_received_content,
             match_intent_to_listings,
             get_relay_stats
         ])

@@ -30,7 +30,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <div className={`w-2.5 h-2.5 rounded-full ${isRelaying ? "bg-nobody-primary animate-pulse" : "bg-slate-300"}`} />
-                        <span className="text-slate-900 font-semibold tracking-wide text-sm">Relayer Mode</span>
+                        <span className="text-slate-900 font-semibold tracking-wide text-sm">🛡️ Relay</span>
                     </div>
 
                     {/* Toggle Switch */}
@@ -70,7 +70,7 @@ export const RelayerStatus: React.FC<RelayerStatusProps> = ({ isRelaying, onTogg
                     </div>
                 ) : (
                     <div className="text-slate-400 text-xs italic pt-2">
-                        Enable Relayer Mode to earn incentives by forwarding mesh traffic.
+                        Enable Relay to earn incentives by forwarding mesh traffic.
                     </div>
                 )}
             </div>

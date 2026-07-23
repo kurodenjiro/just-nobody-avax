@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { VoucherView } from "../types";
+import { ItemCard } from "./ItemCard";
 
 interface RedeemVoucherProps {
     visible: boolean;
@@ -90,7 +91,7 @@ export const RedeemVoucher: React.FC<RedeemVoucherProps> = ({ visible, onClose }
 
                 {/* Header */}
                 <div className="bg-slate-50 px-5 py-3 border-b border-nobody-gold/20 flex justify-between items-center text-xs">
-                    <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">REDEEM VOUCHER</span>
+                    <span className="text-nobody-gold font-pixel text-[10px] tracking-wide">🎁 LOOT VAULT</span>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">✕</button>
                 </div>
 
@@ -117,16 +118,17 @@ export const RedeemVoucher: React.FC<RedeemVoucherProps> = ({ visible, onClose }
 
                         <div className="space-y-2">
                             {vouchers.map((v) => (
-                                <div
+                                <ItemCard
                                     key={v.token_id}
+                                    icon="🎫"
+                                    title={`#${v.token_id} ${v.voucher_type}`}
+                                    subtitle={v.description}
+                                    priceAvax={0}
+                                    priceLabel="✓ Owned"
+                                    showRarity={false}
                                     onClick={() => handleSelect(v)}
-                                    className={`p-3 pixel-corners-sm border cursor-pointer transition-all flex items-center justify-between ${selected?.token_id === v.token_id ? "border-nobody-gold bg-nobody-gold-soft/30" : "border-slate-200 hover:bg-slate-50"}`}
-                                >
-                                    <div>
-                                        <span className="text-slate-900 font-semibold text-sm">🎫 #{v.token_id} {v.voucher_type}</span>
-                                        <div className="text-[11px] text-slate-400">{v.description}</div>
-                                    </div>
-                                </div>
+                                    selected={selected?.token_id === v.token_id}
+                                />
                             ))}
                         </div>
                     </div>
@@ -145,7 +147,7 @@ export const RedeemVoucher: React.FC<RedeemVoucherProps> = ({ visible, onClose }
                                 disabled={ownerCheck !== "verified" || redeeming}
                                 className="w-full bg-nobody-gold text-white font-semibold py-3 pixel-corners-sm hover:brightness-110 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {redeeming ? "Claiming..." : "🎁 Claim / Redeem"}
+                                {redeeming ? "Looting..." : "🎁 Loot This Item"}
                             </button>
                         </div>
                     )}

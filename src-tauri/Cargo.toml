@@ -43,4 +43,5 @@ aes-gcm = "0.10.3"
 base64 = "0.22.1"
 dotenv = "0.15.0"
 dirs = "5"
+lopdf = "0.44"
 

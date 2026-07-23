@@ -8,10 +8,10 @@ use chrono::{DateTime, Utc};
 use alloy::{
     eips::eip2718::Encodable2718,
     network::{EthereumWallet, TransactionBuilder},
-    primitives::{Address, Bytes, U256},
+    primitives::{keccak256, Address, Bytes, Signature, U256},
     providers::{Provider, ProviderBuilder},
     rpc::types::TransactionRequest,
-    signers::local::PrivateKeySigner,
+    signers::{local::PrivateKeySigner, SignerSync},
     sol,
 };
 use keyring::Entry;
@@ -95,6 +95,32 @@ pub struct VoucherView {
     pub owner: String,
 }
 
+/// A Marketplace deal (real on-chain state: Active/Released/Refunded) —
+/// the real "someone is transacting on this listing" signal.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DealView {
+    pub deal_id: u64,
+    pub buyer: String,
+    pub seller: String,
+    pub token_id: u64,
+    pub amount_avax: String,
+    pub status: String, // "active" | "released" | "refunded"
+    pub role: String,   // "buyer" | "seller" (relative to the address queried)
+}
+
+/// A piece of content (e.g. a book page) committed to by its seller: a real
+/// EIP-191 signature over the exact text, verifiable by recovering the
+/// signer's address — used in place of a literal ZK proof (no `nargo`/Noir
+/// available), same honesty tradeoff already made for voucher ownership.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentRecord {
+    pub token_id: u64,
+    pub text: String,
+    pub fingerprint: String, // short keccak256 hash of the text, for display
+    pub signature: String,
+    pub signer_address: String,
+}
+
 /// Nonce + gas price snapshot from the last time we successfully reached the
 /// RPC, refreshed opportunistically in `sync_state()`. Used to sign
 /// transactions offline when the RPC can't be reached at all.
@@ -161,6 +187,8 @@ pub struct BlockchainBridge {
     pub chain_cache_path: PathBuf,
     pub pending_relay_path: PathBuf,
     pub relayed_history_path: PathBuf,
+    pub content_store_path: PathBuf,
+    pub received_content_path: PathBuf,
     pub rpc_url: String,
     pub escrow_address: Option<Address>,
     pub marketplace_address: Option<Address>,
@@ -202,6 +230,8 @@ impl BlockchainBridge {
             chain_cache_path: app_dir.join("chain_cache.json"),
             pending_relay_path: app_dir.join("pending_relay_txs.json"),
             relayed_history_path: app_dir.join("relayed_history.json"),
+            content_store_path: app_dir.join("content_store.json"),
+            received_content_path: app_dir.join("received_content.json"),
             rpc_url,
             escrow_address,
             marketplace_address,
@@ -889,6 +919,141 @@ impl BlockchainBridge {
 
         Ok(owned)
     }
+
+    /// A Marketplace deal this address is involved in (as buyer or seller),
+    /// with its real on-chain status — this IS the "an agent is dealing with
+    /// this listing" signal: `active` means a buyer has locked funds against
+    /// a seller's voucher and it's awaiting release/refund.
+    pub async fn get_my_deals(&self, address: &str) -> Result<Vec<DealView>, Box<dyn Error>> {
+        let marketplace_address = self.marketplace_address.ok_or("MARKETPLACE_CONTRACT_ADDRESS not configured")?;
+        let my_addr = Address::from_str(address)?;
+        let provider = ProviderBuilder::new().connect_http(self.rpc_url.parse()?);
+        let contract = IMarketplace::new(marketplace_address, provider);
+
+        let next_id = contract.nextDealId().call().await?.to::<u64>();
+
+        let mut deals = Vec::new();
+        for deal_id in 1..next_id {
+            let Ok(deal) = contract.getDeal(U256::from(deal_id)).call().await else {
+                continue;
+            };
+            if deal.buyer != my_addr && deal.seller != my_addr {
+                continue;
+            }
+            let status = match deal.status {
+                1 => "active",
+                2 => "released",
+                3 => "refunded",
+                _ => "none",
+            };
+            deals.push(DealView {
+                deal_id,
+                buyer: deal.buyer.to_string(),
+                seller: deal.seller.to_string(),
+                token_id: deal.tokenId.to::<u64>(),
+                amount_avax: alloy::primitives::utils::format_ether(deal.amount),
+                status: status.to_string(),
+                role: if deal.seller == my_addr { "seller".to_string() } else { "buyer".to_string() },
+            });
+        }
+
+        Ok(deals)
+    }
+
+    // ---- PDF content commitment + delivery --------------------------------
+
+    fn load_content_store(&self) -> std::collections::HashMap<u64, ContentRecord> {
+        fs::read_to_string(&self.content_store_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    }
+
+    fn save_content_store(&self, store: &std::collections::HashMap<u64, ContentRecord>) -> Result<(), Box<dyn Error>> {
+        fs::write(&self.content_store_path, serde_json::to_string_pretty(store)?)?;
+        Ok(())
+    }
+
+    fn load_received_content(&self) -> std::collections::HashMap<u64, ContentRecord> {
+        fs::read_to_string(&self.received_content_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    }
+
+    fn save_received_content(&self, store: &std::collections::HashMap<u64, ContentRecord>) -> Result<(), Box<dyn Error>> {
+        fs::write(&self.received_content_path, serde_json::to_string_pretty(store)?)?;
+        Ok(())
+    }
+
+    /// Extracts page 1's text from a PDF's raw bytes (pure-Rust, no system
+    /// dependency, no network needed).
+    pub fn extract_pdf_text(&self, pdf_bytes: Vec<u8>) -> Result<String, Box<dyn Error>> {
+        let doc = lopdf::Document::load_mem(&pdf_bytes)?;
+        let text = doc.extract_text(&[1])?;
+        Ok(text)
+    }
+
+    /// Signs the exact text with this node's identity key — a real,
+    /// verifiable commitment standing in for a literal ZK proof (no
+    /// `nargo`/Noir available). `token_id` is filled in by the caller once
+    /// the voucher has actually been minted.
+    pub fn sign_content(&self, text: &str) -> Result<ContentRecord, Box<dyn Error>> {
+        let signer = self.primary_signer()?;
+        let signature = signer.sign_message_sync(text.as_bytes())?;
+        let fingerprint = format!("0x{}", hex::encode(&keccak256(text.as_bytes())[..8]));
+
+        Ok(ContentRecord {
+            token_id: 0,
+            text: text.to_string(),
+            fingerprint,
+            signature: signature.to_string(),
+            signer_address: signer.address().to_string(),
+        })
+    }
+
+    /// Persists a signed content record for a listing this node sold, so it
+    /// can respond when the buyer's node requests delivery over the mesh.
+    pub fn store_content(&self, token_id: u64, mut record: ContentRecord) -> Result<(), Box<dyn Error>> {
+        record.token_id = token_id;
+        let mut store = self.load_content_store();
+        store.insert(token_id, record);
+        self.save_content_store(&store)
+    }
+
+    pub fn get_content(&self, token_id: u64) -> Option<ContentRecord> {
+        self.load_content_store().get(&token_id).cloned()
+    }
+
+    /// Verifies a delivered piece of content really was signed by the
+    /// expected seller before accepting it — never trusts the mesh payload
+    /// on its own.
+    pub fn receive_content(&self, token_id: u64, text: &str, signature: &str, expected_seller: &str) -> Result<bool, Box<dyn Error>> {
+        let sig = Signature::from_str(signature)?;
+        let recovered = sig.recover_address_from_msg(text.as_bytes())?;
+        let expected = Address::from_str(expected_seller)?;
+
+        if recovered != expected {
+            println!("⚠️  Content delivery rejected: signature recovered {} but expected seller {}", recovered, expected);
+            return Ok(false);
+        }
+
+        let fingerprint = format!("0x{}", hex::encode(&keccak256(text.as_bytes())[..8]));
+        let mut store = self.load_received_content();
+        store.insert(token_id, ContentRecord {
+            token_id,
+            text: text.to_string(),
+            fingerprint,
+            signature: signature.to_string(),
+            signer_address: recovered.to_string(),
+        });
+        self.save_received_content(&store)?;
+        Ok(true)
+    }
+
+    pub fn get_received_content(&self, token_id: u64) -> Option<ContentRecord> {
+        self.load_received_content().get(&token_id).cloned()
+    }
 }
 
 #[cfg(test)]
@@ -912,6 +1077,8 @@ mod offline_signing_tests {
             chain_cache_path: tmp_dir.join("chain_cache.json"),
             pending_relay_path: tmp_dir.join("pending_relay_txs.json"),
             relayed_history_path: tmp_dir.join("relayed_history.json"),
+            content_store_path: tmp_dir.join("content_store.json"),
+            received_content_path: tmp_dir.join("received_content.json"),
             // Deliberately unreachable — proves sign_offline never touches the network.
             rpc_url: "http://127.0.0.1:9".to_string(),
             escrow_address: None,
@@ -951,6 +1118,69 @@ mod offline_signing_tests {
             .await
             .expect("second sign_offline should also succeed");
         assert_ne!(queued.raw_tx_hex, queued2.raw_tx_hex);
+
+        std::fs::remove_dir_all(&tmp_dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod content_commitment_tests {
+    use super::*;
+
+    fn test_bridge(tmp_dir: &PathBuf) -> BlockchainBridge {
+        BlockchainBridge {
+            identities: Vec::new(),
+            identity_path: tmp_dir.join("identities.json"),
+            storage_path: tmp_dir.join("snapshot.enc"),
+            chain_cache_path: tmp_dir.join("chain_cache.json"),
+            pending_relay_path: tmp_dir.join("pending_relay_txs.json"),
+            relayed_history_path: tmp_dir.join("relayed_history.json"),
+            content_store_path: tmp_dir.join("content_store.json"),
+            received_content_path: tmp_dir.join("received_content.json"),
+            rpc_url: "http://127.0.0.1:9".to_string(),
+            escrow_address: None,
+            marketplace_address: None,
+            voucher_address: None,
+            current_session: None,
+        }
+    }
+
+    /// A signed content commitment must verify when the recovered signer matches
+    /// the real seller address, and must be rejected — never silently trusted —
+    /// when it doesn't. No network needed for any of this (pure crypto).
+    #[test]
+    fn signs_and_verifies_content_commitment() {
+        let tmp_dir = std::env::temp_dir().join(format!("cabalmesh_content_test_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+
+        let mut seller_bridge = test_bridge(&tmp_dir.join("seller"));
+        std::fs::create_dir_all(tmp_dir.join("seller")).unwrap();
+        seller_bridge.generate_new_identity("Seller".to_string(), "📚".to_string()).unwrap();
+        let seller_address = seller_bridge.get_primary_address();
+
+        let text = "Chapter 1: It was the best of times, it was the worst of times.";
+        let record = seller_bridge.sign_content(text).expect("sign_content should succeed offline");
+        assert_eq!(record.signer_address.to_lowercase(), seller_address.to_lowercase());
+        assert!(!record.signature.is_empty());
+
+        // Buyer's own bridge instance (different identity) verifies the delivered content.
+        let mut buyer_bridge = test_bridge(&tmp_dir.join("buyer"));
+        std::fs::create_dir_all(tmp_dir.join("buyer")).unwrap();
+        buyer_bridge.generate_new_identity("Buyer".to_string(), "🛒".to_string()).unwrap();
+
+        let accepted = buyer_bridge
+            .receive_content(1, text, &record.signature, &seller_address)
+            .expect("receive_content should not error");
+        assert!(accepted, "a correctly signed commitment from the real seller must verify");
+        assert!(buyer_bridge.get_received_content(1).is_some());
+
+        // A signature that doesn't match the claimed seller must be rejected.
+        let wrong_seller = "0x0000000000000000000000000000000000000001";
+        let rejected = buyer_bridge
+            .receive_content(2, text, &record.signature, wrong_seller)
+            .expect("receive_content should not error even on mismatch");
+        assert!(!rejected, "a signature from someone else must never be silently accepted");
+        assert!(buyer_bridge.get_received_content(2).is_none());
 
         std::fs::remove_dir_all(&tmp_dir).ok();
     }

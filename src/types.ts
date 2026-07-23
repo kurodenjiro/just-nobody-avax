@@ -26,6 +26,18 @@ export interface VoucherView {
     owner: string;
 }
 
+/** A Marketplace deal's real on-chain status — the "someone is currently
+ * transacting on this listing" signal. */
+export interface DealView {
+    deal_id: number;
+    buyer: string;
+    seller: string;
+    token_id: number;
+    amount_avax: string;
+    status: "active" | "released" | "refunded" | "none";
+    role: "buyer" | "seller";
+}
+
 export interface MatchResult {
     listing_id: number;
     seller: string;
@@ -46,6 +58,10 @@ export interface MeshEvent {
     summary?: string;
     status?: string;
     tx_hash?: string;
+    token_id?: number;
+    text?: string;
+    signature?: string;
+    signer_address?: string;
 }
 
 /** Result of an action that normally hits the chain directly: either it went
@@ -62,6 +78,18 @@ export interface QueuedTx {
     created_at: string;
     status: "queued" | "confirmed" | "failed";
     tx_hash: string | null;
+}
+
+/** A piece of content (e.g. a book page) committed to by its seller: a real
+ * EIP-191 signature over the exact text, verifiable by recovering the
+ * signer's address — used in place of a literal ZK proof (no nargo/Noir
+ * available on this machine). */
+export interface ContentRecord {
+    token_id: number;
+    text: string;
+    fingerprint: string;
+    signature: string;
+    signer_address: string;
 }
 
 export type ViewState =

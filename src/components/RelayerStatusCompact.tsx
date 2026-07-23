@@ -43,7 +43,7 @@ export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRe
         <div className="relative">
             <div className="h-8 flex items-center gap-2 bg-nobody-charcoal pixel-corners-sm px-3 border border-nobody-primary/20 shadow-card">
                 <div className={`w-2 h-2 rounded-full ${isRelaying ? "bg-nobody-primary animate-pulse" : "bg-slate-300"}`} />
-                <span className="text-[10px] text-slate-500 font-medium">RELAY</span>
+                <span className="text-[10px] text-slate-500 font-medium">🛡️ RELAY</span>
                 <button
                     onClick={() => onToggle(!isRelaying)}
                     className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isRelaying ? "bg-nobody-primary" : "bg-slate-200"}`}
@@ -73,7 +73,7 @@ export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRe
                                 <div className="flex justify-between"><span className="text-slate-400">Connections</span><span className="text-slate-900 font-semibold">{activeConnections}</span></div>
                             </div>
                         ) : (
-                            <div className="text-slate-500">Turn on Relay Mode to help forward Mesh traffic and earn small AVAX rewards.</div>
+                            <div className="text-slate-500">Turn on Relay to help forward Mesh traffic and earn small AVAX rewards.</div>
                         )}
 
                         <div className="border-t border-slate-100 mt-3 pt-2">

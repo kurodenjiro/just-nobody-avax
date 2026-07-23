@@ -1,21 +1,25 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
+import { ContentRecord } from "../types";
 
 interface ServiceCreatorProps {
     onClose: () => void;
     onDeploy: (listingId: number) => void;
 }
 
-const VOUCHER_TYPES = ["AI Compute Credit", "Relay Bandwidth Credit", "Custom"];
+const VOUCHER_TYPES = ["AI Compute Credit", "Relay Bandwidth Credit", "Book Page (PDF)", "Custom"];
+const PDF_TYPE = "Book Page (PDF)";
 
-type Step = "idle" | "minting" | "approving" | "listing" | "done";
+type Step = "idle" | "extracting" | "minting" | "approving" | "listing" | "signing" | "done";
 
 const STEP_LABEL: Record<Step, string> = {
     idle: "",
+    extracting: "Extracting page 1 text from the PDF...",
     minting: "Minting voucher NFT (proof of possession)...",
     approving: "Approving Marketplace to hold the voucher...",
     listing: "Creating on-chain listing...",
+    signing: "Signing the page content (real signature, not ZK)...",
     done: "Listed ✓",
 };
 
@@ -27,18 +31,48 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
     const [step, setStep] = useState<Step>("idle");
     const [error, setError] = useState<string | null>(null);
 
+    // PDF-specific state
+    const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+    const [extractedText, setExtractedText] = useState("");
+    const [extracting, setExtracting] = useState(false);
+
+    const isPdfListing = voucherType === PDF_TYPE;
     const effectiveType = voucherType === "Custom" ? customType.trim() : voucherType;
     const isDeploying = step !== "idle" && step !== "done";
-    const canDeploy = effectiveType.length > 0 && description.trim().length > 0 && parseFloat(priceAvax) > 0 && !isDeploying;
+    const hasContent = isPdfListing ? extractedText.trim().length > 0 : description.trim().length > 0;
+    const canDeploy = effectiveType.length > 0 && hasContent && parseFloat(priceAvax) > 0 && !isDeploying && !extracting;
+
+    const handlePdfSelect = async (file: File) => {
+        setPdfFileName(file.name);
+        setExtractedText("");
+        setError(null);
+        setExtracting(true);
+        try {
+            const buffer = await file.arrayBuffer();
+            const bytes = Array.from(new Uint8Array(buffer));
+            const text = await invoke<string>("extract_pdf_text", { pdfBytes: bytes });
+            setExtractedText(text);
+        } catch (e) {
+            console.error("Failed to extract PDF text:", e);
+            setError("Failed to read PDF: " + e);
+        } finally {
+            setExtracting(false);
+        }
+    };
 
     const handleDeploy = async () => {
         if (!canDeploy) return;
         setError(null);
         try {
+            const content = isPdfListing ? extractedText.trim() : description.trim();
+            const listingDescription = isPdfListing
+                ? (content.length > 100 ? content.slice(0, 100) + "..." : content)
+                : content;
+
             setStep("minting");
             const tokenId = await invoke<number>("mint_voucher", {
                 voucherType: effectiveType,
-                description: description.trim(),
+                description: listingDescription,
             });
 
             setStep("approving");
@@ -46,10 +80,16 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
 
             setStep("listing");
             const listingId = await invoke<number>("create_asset_listing", {
-                description: description.trim(),
+                description: listingDescription,
                 priceAvax,
                 tokenId,
             });
+
+            if (isPdfListing) {
+                setStep("signing");
+                const record = await invoke<ContentRecord>("sign_content", { text: content });
+                await invoke("store_content", { tokenId, record });
+            }
 
             setStep("done");
             onDeploy(listingId);
@@ -73,7 +113,7 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                 <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
                     <span className="text-nobody-gold font-pixel tracking-wide text-[10px]">[ ✨ CREATE NEW LISTING ]</span>
                     <div className="flex gap-4 text-xs">
-                        <span className="text-slate-500">Mode: Arsenal</span>
+                        <span className="text-slate-500">Mode: Trading Post</span>
                         <span className="text-nobody-primary font-medium">🛡️ On-chain: Fuji</span>
                     </div>
                 </div>
@@ -90,7 +130,7 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                                     type="button"
                                     onClick={() => setVoucherType(t)}
                                     disabled={isDeploying}
-                                    className={`flex-1 text-xs font-semibold py-2 pixel-corners-sm border transition-colors ${voucherType === t ? "border-nobody-primary bg-nobody-primary-soft text-nobody-primary" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
+                                    className={`flex-1 text-[11px] font-semibold py-2 px-1 pixel-corners-sm border transition-colors ${voucherType === t ? "border-nobody-primary bg-nobody-primary-soft text-nobody-primary" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
                                 >
                                     {t}
                                 </button>
@@ -108,17 +148,44 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                         )}
                     </div>
 
-                    {/* Description Input */}
-                    <div className="space-y-2">
-                        <label className="text-slate-500 text-xs font-semibold">What are you offering?</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            disabled={isDeploying}
-                            placeholder='Example: "1 hour of Ollama compute time over the mesh"'
-                            className="w-full h-24 bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-sm text-slate-900 focus:border-nobody-primary focus:bg-nobody-charcoal outline-none resize-none transition-colors"
-                        />
-                    </div>
+                    {/* Content Input: PDF upload vs free-text description */}
+                    {isPdfListing ? (
+                        <div className="space-y-2">
+                            <label className="text-slate-500 text-xs font-semibold">Upload a PDF — page 1's text is what you're selling</label>
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                disabled={isDeploying}
+                                onChange={(e) => e.target.files?.[0] && handlePdfSelect(e.target.files[0])}
+                                className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:pixel-corners-sm file:border-0 file:bg-nobody-primary file:text-nobody-ink file:text-xs file:font-semibold file:cursor-pointer"
+                            />
+                            {pdfFileName && (
+                                <div className="text-[11px] text-slate-400">📄 {pdfFileName}</div>
+                            )}
+                            {extracting && (
+                                <div className="text-xs text-nobody-primary animate-pulse">Reading page 1...</div>
+                            )}
+                            {extractedText && (
+                                <div className="space-y-1">
+                                    <label className="text-slate-500 text-[11px]">Extracted page 1 (this is exactly what gets signed and delivered):</label>
+                                    <div className="w-full max-h-32 overflow-y-auto bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-xs text-slate-700 whitespace-pre-wrap">
+                                        {extractedText}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <label className="text-slate-500 text-xs font-semibold">What are you offering?</label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                disabled={isDeploying}
+                                placeholder='Example: "1 hour of Ollama compute time over the mesh"'
+                                className="w-full h-24 bg-slate-50 border border-slate-200 pixel-corners-sm p-3 text-sm text-slate-900 focus:border-nobody-primary focus:bg-nobody-charcoal outline-none resize-none transition-colors"
+                            />
+                        </div>
+                    )}
 
                     {/* Price Input */}
                     <div className="space-y-2">
@@ -135,9 +202,9 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                         />
                     </div>
 
-                    {description && parseFloat(priceAvax) > 0 && step === "idle" && (
+                    {hasContent && parseFloat(priceAvax) > 0 && step === "idle" && (
                         <div className="bg-nobody-gold-soft pixel-corners-sm p-3 text-center text-sm text-nobody-gold font-semibold">
-                            Preview: "{effectiveType}" — "{description}" — {priceAvax} AVAX
+                            Preview: "{effectiveType}" — {priceAvax} AVAX
                         </div>
                     )}
 
@@ -147,7 +214,7 @@ export const ServiceCreator: React.FC<ServiceCreatorProps> = ({ onClose, onDeplo
                                 {STEP_LABEL[step]}
                             </div>
                             <div className="text-slate-400 text-[11px]">
-                                3 real on-chain transactions: mint → approve → list
+                                {isPdfListing ? "3 on-chain transactions + 1 content signature: mint → approve → list → sign" : "3 real on-chain transactions: mint → approve → list"}
                             </div>
                         </div>
                     )}

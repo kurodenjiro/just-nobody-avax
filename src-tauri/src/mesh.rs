@@ -192,6 +192,24 @@ impl MeshNetwork {
                                             println!("📨 Received relay_confirmed: {} -> {}", queue_id, status);
                                             let _ = tx.send(MeshEvent::RelayConfirmed { queue_id, status, tx_hash });
                                         }
+                                    } else if intent.intent_type == "content_request" {
+                                        // A buyer is asking whoever sold this tokenId to deliver the content.
+                                        if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&intent.payload) {
+                                            if let Some(token_id) = payload.get("token_id").and_then(|v| v.as_u64()) {
+                                                println!("📨 Received content_request for token #{}", token_id);
+                                                let _ = tx.send(MeshEvent::ContentRequested { token_id });
+                                            }
+                                        }
+                                    } else if intent.intent_type == "content_delivery" {
+                                        // The seller is delivering the signed content for a purchased tokenId.
+                                        if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&intent.payload) {
+                                            let token_id = payload.get("token_id").and_then(|v| v.as_u64()).unwrap_or(0);
+                                            let text = payload.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            let signature = payload.get("signature").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            let signer_address = payload.get("signer_address").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            println!("📬 Received content_delivery for token #{}", token_id);
+                                            let _ = tx.send(MeshEvent::ContentDelivered { token_id, text, signature, signer_address });
+                                        }
                                     } else {
                                         // Regular trade intent
                                         println!("📬 Received Intent: {:?}", intent);
@@ -301,4 +319,6 @@ pub enum MeshEvent {
     SettlementComplete { details: String },
     RelayTxReceived { queue_id: String, raw_tx_hex: String, summary: String },
     RelayConfirmed { queue_id: String, status: String, tx_hash: Option<String> },
+    ContentRequested { token_id: u64 },
+    ContentDelivered { token_id: u64, text: String, signature: String, signer_address: String },
 }

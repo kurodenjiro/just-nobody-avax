@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
+import { ContentRecord } from "../types";
+import { PixelClassIcon } from "./icons/PixelClassIcon";
 
 interface SmartEscrowProps {
     visible: boolean;
@@ -13,9 +15,16 @@ interface SmartEscrowProps {
     onRelease?: () => void;
     itemLabel?: string;
     priceLabel?: string;
+    /** Set once the seller's node has delivered the real content over mesh and
+     * its signature has been verified against the seller's address. */
+    deliveredContent?: ContentRecord;
+    /** Real wallet addresses of the two sides, used only to derive a deterministic
+     * PixelClassIcon per address — purely cosmetic, no new data fetched here. */
+    buyerAddress?: string;
+    sellerAddress?: string;
 }
 
-export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dealSource = "p2p", onClose, onRelease, itemLabel = "NFT #04", priceLabel = "13.5 AVAX" }) => {
+export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dealSource = "p2p", onClose, onRelease, itemLabel = "NFT #04", priceLabel = "13.5 AVAX", deliveredContent, buyerAddress, sellerAddress }) => {
     const [released, setReleased] = useState(false);
     const [releasing, setReleasing] = useState(false);
     const [refunding, setRefunding] = useState(false);
@@ -116,7 +125,7 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dea
                 <div className="text-center mb-10">
                     <div className="text-amber-600 text-xs font-semibold tracking-widest mb-2 uppercase">Smart Escrow Protocol</div>
                     <h1 className="text-2xl text-slate-900 font-bold">
-                        {released ? "Settlement Complete" : refunded ? "Refunded" : "Settlement In Progress"}
+                        {released ? "⚔️ Quest Complete!" : refunded ? "Refunded" : "⚔️ Quest In Progress"}
                     </h1>
                 </div>
 
@@ -124,7 +133,7 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dea
                     {/* Left Vault */}
                     <div className="text-center">
                         <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-amber-50 border border-amber-200">
-                            💰
+                            <PixelClassIcon address={buyerAddress} size={32} />
                         </div>
                         <div className="text-slate-900 font-semibold">{priceLabel}</div>
                         <div className="text-xs text-slate-400 mt-1">
@@ -143,14 +152,14 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dea
                             />
                         </div>
                         <div className="mt-2 text-[11px] text-amber-600 font-medium">
-                            {released ? "Complete ✓" : refunded ? "Refunded ✓" : <span className="animate-pulse">Verifying integrity...</span>}
+                            {released ? "Complete ✓" : refunded ? "Refunded ✓" : <span className="animate-pulse">Confirming on-chain...</span>}
                         </div>
                     </div>
 
                     {/* Right Vault */}
                     <div className="text-center">
                         <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 bg-nobody-gold-soft border border-nobody-gold/20">
-                            🦊
+                            <PixelClassIcon address={sellerAddress} size={32} />
                         </div>
                         <div className="text-slate-900 font-semibold">{itemLabel}</div>
                         <div className="text-xs text-slate-400 mt-1">
@@ -158,6 +167,21 @@ export const SmartEscrow: React.FC<SmartEscrowProps> = ({ visible, escrowId, dea
                         </div>
                     </div>
                 </div>
+
+                {/* Delivered content — real, signature-verified, not a literal ZK proof */}
+                {deliveredContent && (
+                    <div className="bg-slate-50 pixel-corners-sm p-4 border border-nobody-primary/30 mb-6 space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-nobody-primary font-semibold">📖 Content delivered</span>
+                            <span className="text-slate-400 font-mono" title={deliveredContent.signer_address}>
+                                verified — signed by {deliveredContent.signer_address.slice(0, 6)}...{deliveredContent.signer_address.slice(-4)}
+                            </span>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto text-xs text-slate-700 whitespace-pre-wrap bg-nobody-charcoal border border-slate-200 pixel-corners-sm p-3">
+                            {deliveredContent.text}
+                        </div>
+                    </div>
+                )}
 
                 {/* Status Items */}
                 <div className="grid grid-cols-2 gap-4 mb-8">

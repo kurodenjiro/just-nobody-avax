@@ -15,10 +15,14 @@ import { IntentComposer } from "./components/IntentComposer";
 import { AgentLog } from "./components/AgentLog";
 import { SearchQueue, SearchJob } from "./components/SearchQueue";
 import { OfflineQueue } from "./components/OfflineQueue";
+import { OnboardingHint } from "./components/OnboardingHint";
 import { RATE_PER_BYTE_AVAX } from "./hooks/useRelayStats";
+import { useOllamaStatus } from "./hooks/useOllamaStatus";
 import { NodeConfig } from "./components/NodeConfig";
 import { NotificationToast } from "./components/NotificationToast";
 import { ProviderDashboard } from "./components/ProviderDashboard";
+import { TradingPostPanel } from "./components/TradingPostPanel";
+import { QuestLogPanel } from "./components/QuestLogPanel";
 import { ServiceCreator } from "./components/ServiceCreator";
 import { WalletCabinet } from "./components/WalletCabinet";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -28,7 +32,7 @@ import { DealNotification } from "./components/DealNotification";
 import { DelegationCenter } from "./components/DelegationCenter";
 
 // Types
-import { Peer, MeshEvent, ViewState, MatchResult, AssetListingView, TxResult, QueuedTx } from "./types";
+import { Peer, MeshEvent, ViewState, MatchResult, AssetListingView, TxResult, QueuedTx, ContentRecord } from "./types";
 
 interface SharkNegotiation {
     user_price_ceiling: number;
@@ -56,6 +60,12 @@ function App() {
     const [peers, setPeers] = useState<Peer[]>([]);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [isProcessing, setIsProcessing] = useState(false);
+    const aiReady = useOllamaStatus();
+    const [showHint, setShowHint] = useState(() => localStorage.getItem("cabalmesh_seen_intent_hint") !== "1");
+    const dismissHint = () => {
+        localStorage.setItem("cabalmesh_seen_intent_hint", "1");
+        setShowHint(false);
+    };
 
     // UI State
     const [view, setView] = useState<ViewState>("nexus");
@@ -79,6 +89,21 @@ function App() {
     const [dealNegotiation, setDealNegotiation] = useState<SharkNegotiation | null>(null);
     const [receivedIntentText, setReceivedIntentText] = useState("");
     const [dealSource, setDealSource] = useState<"arsenal" | "p2p">("p2p");
+
+    // Content-delivery: which voucher tokenId + seller the currently open deal is
+    // for, and any content that's arrived (verified) for it. Refs mirror the state
+    // so the mesh-event listener (registered once) never sees a stale value.
+    const [dealTokenId, setDealTokenId] = useState<number | null>(null);
+    const dealTokenIdRef = useRef<number | null>(null);
+    const dealSellerRef = useRef<string | null>(null);
+    const [deliveredContent, setDeliveredContent] = useState<Record<number, ContentRecord>>({});
+
+    // Own real wallet address — fetched once, used only for cosmetic class-icon framing
+    // in SmartEscrow (which "class" avatar represents "you" in a deal).
+    const [myAddress, setMyAddress] = useState<string | null>(null);
+    useEffect(() => {
+        invoke<{ address: string }[]>("get_identity").then((ids) => setMyAddress(ids[0]?.address ?? null)).catch(console.error);
+    }, []);
 
     // Offline-mesh-relay: transactions signed locally (no RPC reachable) and queued
     // for whichever peer with real connectivity + Relay Mode on submits them.
@@ -195,6 +220,54 @@ function App() {
                 invoke("mark_relay_tx_status", { queueId, status, txHash: txHash ?? null }).catch(console.error);
                 setOfflineQueue((prev) => prev.map((t) => (t.id === queueId ? { ...t, status: status as QueuedTx["status"], tx_hash: txHash ?? null } : t)));
 
+            } else if (meshEvent.type === "ContentRequested") {
+                const tokenId = meshEvent.token_id;
+                if (tokenId == null) return;
+                console.log("📨 ContentRequested for token", tokenId);
+                try {
+                    const content = await invoke<ContentRecord | null>("get_content", { tokenId });
+                    if (content) {
+                        invoke("send_intent_to_mesh", {
+                            payload: JSON.stringify({
+                                type: "ContentDelivery",
+                                token_id: tokenId,
+                                text: content.text,
+                                signature: content.signature,
+                                signer_address: content.signer_address,
+                            }),
+                        }).catch(console.error);
+                    }
+                } catch (e) {
+                    console.error("Failed to look up content for delivery:", e);
+                }
+
+            } else if (meshEvent.type === "ContentDelivered") {
+                const tokenId = meshEvent.token_id;
+                const text = meshEvent.text || "";
+                const signature = meshEvent.signature || "";
+                const signerAddress = meshEvent.signer_address || "";
+                if (tokenId == null || !text || tokenId !== dealTokenIdRef.current || !dealSellerRef.current) return;
+
+                console.log("📬 ContentDelivered for token", tokenId, "verifying against seller", dealSellerRef.current);
+                try {
+                    const verified = await invoke<boolean>("receive_content", {
+                        tokenId,
+                        text,
+                        signature,
+                        expectedSeller: dealSellerRef.current,
+                    });
+                    if (verified) {
+                        setDeliveredContent((prev) => ({
+                            ...prev,
+                            [tokenId]: { token_id: tokenId, text, fingerprint: "", signature, signer_address: signerAddress },
+                        }));
+                    } else {
+                        console.error("Content delivery failed signature verification — rejected.");
+                    }
+                } catch (e) {
+                    console.error("Failed to verify delivered content:", e);
+                }
+
             } else {
                 console.log("⚠️ Unknown mesh event type:", meshEvent.type);
             }
@@ -268,7 +341,7 @@ function App() {
                 return;
             }
 
-            updateSearch(id, { status: "buying", message: `Buying voucher #${match.token_id} — locking AVAX...` });
+            updateSearch(id, { status: "buying", message: `⚔️ Closing the deal on voucher #${match.token_id} — locking AVAX...` });
 
             const result = await invoke<TxResult>("buy_listing", {
                 listingId: match.listing_id,
@@ -281,7 +354,16 @@ function App() {
                 setDealSource("arsenal");
                 setDealItemLabel(`🎫 #${match.token_id} — ${match.description}`);
                 setDealPriceLabel(`${match.price_avax} AVAX`);
+                setDealTokenId(match.token_id);
+                dealTokenIdRef.current = match.token_id;
+                dealSellerRef.current = match.seller;
+                setDeliveredContent({});
                 setView("escrow");
+
+                // Ask whoever sold this voucher (if online) to deliver the real content.
+                invoke("send_intent_to_mesh", {
+                    payload: JSON.stringify({ type: "ContentRequest", token_id: match.token_id }),
+                }).catch(console.error);
 
                 setTimeout(() => {
                     setSearches(prev => prev.filter(j => j.id !== id));
@@ -314,6 +396,7 @@ function App() {
 
     const handleIntentSubmit = () => {
         if (!intent.trim()) return;
+        if (showHint) dismissHint();
         const submittedIntent = intent.trim();
         const ceiling = parseFloat(priceCeiling) || 0;
         setIntent(""); // clear immediately so another intent can be typed right away
@@ -398,12 +481,12 @@ function App() {
     const handleDeployService = (listingId: number) => {
         console.log("✅ On-chain listing created:", listingId);
         setListingsRefreshKey((k) => k + 1);
-        setView("provider");
+        setView("nexus");
     };
 
     return (
         <ErrorBoundary>
-            <Nexus isOnline={isOnline} peerCount={peers.length} showConfig={() => setShowConfig(true)}>
+            <Nexus isOnline={isOnline} peerCount={peers.length} aiReady={aiReady} showConfig={() => setShowConfig(true)}>
                 {/* Background mesh scene is always visible in Nexus mode */}
                 <AmbientParticles />
                 <RadiantHalo />
@@ -412,9 +495,8 @@ function App() {
                 {/* Main Menu Bar */}
                 {view === "nexus" && (
                     <div className="absolute top-4 left-4 right-4 z-50 flex flex-wrap gap-2 items-start">
-                        <MenuButton label="ARSENAL" onClick={handleSwitchToProvider} active={false} color="nobody-primary" />
-                        <MenuButton label="WALLET" onClick={() => setView("wallet-cabinet")} active={false} color="nobody-primary" />
-                        <MenuButton label="REDEEM" onClick={() => setView("redeem")} active={false} color="nobody-gold" />
+                        <MenuButton label="INVENTORY" onClick={() => setView("wallet-cabinet")} active={false} color="nobody-primary" />
+                        <MenuButton label="CLAIM LOOT" onClick={() => setView("redeem")} active={false} color="nobody-gold" />
                         <div className="w-px self-stretch bg-slate-300/60 mx-1 hidden sm:block" />
                         <RelayerStatusCompact isRelaying={isRelaying} onToggle={setIsRelaying} peerCount={peers.length} />
                         <ActiveListingsCompact refreshKey={listingsRefreshKey} />
@@ -425,6 +507,14 @@ function App() {
                 {/* Receiver-side processing (evaluating an incoming peer intent) */}
                 <AgentLog visible={(logs.length > 0 || isProcessing) && view === "nexus"} logs={logs} />
 
+                {/* Always-visible listings/deals — no need to open Arsenal Mode just to look */}
+                {view === "nexus" && (
+                    <TradingPostPanel refreshKey={listingsRefreshKey} onOpenArsenal={handleSwitchToProvider} onCreateListing={handleCreateService} />
+                )}
+                {view === "nexus" && (
+                    <QuestLogPanel refreshKey={listingsRefreshKey} onOpenArsenal={handleSwitchToProvider} />
+                )}
+
                 {/* Sender-side queue of this node's own in-flight/finished intent searches */}
                 {view === "nexus" && (
                     <SearchQueue jobs={searches} onDismiss={handleDismissSearch} />
@@ -433,6 +523,11 @@ function App() {
                 {/* Transactions signed offline, queued for a mesh peer with real connectivity to relay */}
                 {view === "nexus" && (
                     <OfflineQueue items={offlineQueue} onDismiss={handleDismissOfflineItem} />
+                )}
+
+                {/* One-time onboarding hint for first-time users */}
+                {view === "nexus" && (
+                    <OnboardingHint visible={showHint} onDismiss={dismissHint} />
                 )}
 
                 {/* Main Command Input */}
@@ -463,7 +558,6 @@ function App() {
                 <ProviderDashboard
                     visible={view === "provider"}
                     onClose={() => setView("nexus")}
-                    onCreateService={handleCreateService}
                     isRelaying={isRelaying}
                     onToggleRelay={setIsRelaying}
                     refreshKey={listingsRefreshKey}
@@ -481,7 +575,7 @@ function App() {
 
                 {view === "service-creator" && (
                     <ServiceCreator
-                        onClose={() => setView("provider")}
+                        onClose={() => setView("nexus")}
                         onDeploy={handleDeployService}
                     />
                 )}
@@ -494,6 +588,9 @@ function App() {
                     onRelease={handleReleaseFunds}
                     itemLabel={dealItemLabel}
                     priceLabel={dealPriceLabel}
+                    deliveredContent={dealTokenId != null ? deliveredContent[dealTokenId] : undefined}
+                    buyerAddress={myAddress ?? undefined}
+                    sellerAddress={dealSellerRef.current ?? undefined}
                 />
 
                 <DealNotification

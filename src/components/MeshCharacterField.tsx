@@ -2,16 +2,21 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Peer } from "../types";
 import { PixelKnight } from "./icons/PixelKnight";
+import { addressClass, CLASS_LABEL, CharacterClass } from "../lib/rpgFlavor";
 
 interface MeshCharacterFieldProps {
     peers: Peer[];
 }
 
-const NODE_COLORS = [
-    { text: "text-nobody-primary", bg: "bg-nobody-primary", glow: "rgba(57,255,143,0.55)" },
-    { text: "text-nobody-gold", bg: "bg-nobody-gold", glow: "rgba(192,77,255,0.55)" },
-    { text: "text-nobody-accent", bg: "bg-nobody-accent", glow: "rgba(255,63,164,0.55)" },
-];
+/** Per-class tint/shape so each peer node reads as a distinct NPC — the class
+ * itself is a deterministic hash of the peer's real id (see addressClass),
+ * this map just decides how each of the 4 classes looks. */
+const CLASS_STYLE: Record<CharacterClass, { text: string; bg: string; glow: string; shape: string }> = {
+    knight: { text: "text-nobody-primary", bg: "bg-nobody-primary", glow: "rgba(57,255,143,0.55)", shape: "rotate-45" },
+    scout: { text: "text-nobody-gold", bg: "bg-nobody-gold", glow: "rgba(192,77,255,0.55)", shape: "rounded-full" },
+    mystic: { text: "text-nobody-accent", bg: "bg-nobody-accent", glow: "rgba(255,63,164,0.55)", shape: "rounded-none" },
+    forger: { text: "text-slate-400", bg: "bg-slate-400", glow: "rgba(148,163,184,0.55)", shape: "rounded-sm" },
+};
 
 const peerPosition = (peer: Peer, index: number, total: number) => {
     const seed = peer.id.charCodeAt(0) % 360;
@@ -54,7 +59,7 @@ export const MeshCharacterField: React.FC<MeshCharacterFieldProps> = ({ peers })
             {/* Tether lines from beacon to each peer */}
             {peers.map((peer, index) => {
                 const { distance, lineAngle } = peerPosition(peer, index, peers.length);
-                const color = NODE_COLORS[index % NODE_COLORS.length];
+                const color = CLASS_STYLE[addressClass(peer.id)];
                 return (
                     <motion.div
                         key={`tether-${peer.id}`}
@@ -75,7 +80,8 @@ export const MeshCharacterField: React.FC<MeshCharacterFieldProps> = ({ peers })
             <AnimatePresence>
                 {peers.map((peer, index) => {
                     const { x, y } = peerPosition(peer, index, peers.length);
-                    const color = NODE_COLORS[index % NODE_COLORS.length];
+                    const cls = addressClass(peer.id);
+                    const color = CLASS_STYLE[cls];
 
                     return (
                         <motion.div
@@ -86,9 +92,9 @@ export const MeshCharacterField: React.FC<MeshCharacterFieldProps> = ({ peers })
                             exit={{ scale: 0, opacity: 0 }}
                             transition={{ type: "spring", stiffness: 120 }}
                         >
-                            <div className={`w-2.5 h-2.5 rotate-45 ${color.bg}`} style={{ boxShadow: `0 0 10px ${color.glow}` }} />
-                            <div className={`absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-mono whitespace-nowrap ${color.text}`}>
-                                NODE
+                            <div className={`w-2.5 h-2.5 ${color.shape} ${color.bg}`} style={{ boxShadow: `0 0 10px ${color.glow}` }} />
+                            <div className={`absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-mono whitespace-nowrap uppercase ${color.text}`}>
+                                {CLASS_LABEL[cls]}
                             </div>
                         </motion.div>
                     );

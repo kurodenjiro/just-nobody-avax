@@ -32,11 +32,11 @@ export const OfflineQueue: React.FC<OfflineQueueProps> = ({ items, onDismiss }) 
                         {item.status === "failed" && <span className="shrink-0">⚠️</span>}
 
                         <div className="flex-1 min-w-0">
-                            <div className="text-slate-900 font-medium truncate">{item.summary}</div>
+                            <div className="text-slate-900 font-medium truncate">🗺️ Quest: {item.summary}</div>
                             <div className="text-slate-400 text-[11px] truncate">
-                                {item.status === "queued" && "Waiting for a mesh peer with network to relay this..."}
-                                {item.status === "confirmed" && (item.tx_hash ? `Confirmed: ${item.tx_hash.slice(0, 10)}...` : "Confirmed on-chain")}
-                                {item.status === "failed" && "Relay failed — try again once you have network"}
+                                {item.status === "queued" && "Awaiting a fellow traveler with network to carry this onward..."}
+                                {item.status === "confirmed" && (item.tx_hash ? `⚔️ Delivered: ${item.tx_hash.slice(0, 10)}...` : "⚔️ Delivered on-chain")}
+                                {item.status === "failed" && "Delivery failed — try again once you have network"}
                             </div>
                         </div>
 

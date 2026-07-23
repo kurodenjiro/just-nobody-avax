@@ -29,27 +29,16 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
 
     const handleSignAndDelegate = async () => {
         setStep("signing");
-
-        // Simulating the sequence from the ASCII art status
-        // 1. Generating Ephemeral Keypair
-        setTimeout(() => setProgress(30), 500);
-
-        // 2. Initializing Instant Session
-        setTimeout(() => setProgress(60), 1200);
-
-        // 3. Signing (Real backend call)
-        setTimeout(async () => {
-            try {
-                await invoke("enable_instant_session");
-                setProgress(100);
-                setTimeout(onComplete, 1000); // Wait a bit then close
-            } catch (e) {
-                console.error("Delegation Failed", e);
-                alert("Delegation Failed: " + e);
-                setStep("idle");
-                setProgress(0);
-            }
-        }, 2000);
+        try {
+            await invoke("enable_instant_session");
+            setProgress(100);
+            setTimeout(onComplete, 800); // Brief pause so the "Done" state is visible before closing
+        } catch (e) {
+            console.error("Delegation Failed", e);
+            alert("Delegation Failed: " + e);
+            setStep("idle");
+            setProgress(0);
+        }
     };
 
     if (!visible) return null;
@@ -76,73 +65,41 @@ export const DelegationCenter: React.FC<DelegationCenterProps> = ({ visible, onC
 
                     {/* Agent Authority Setup */}
                     <div className="space-y-2">
-                        <div className="text-nobody-primary font-semibold text-xs tracking-wide">🗝️ Agent Authority Setup</div>
+                        <div className="text-nobody-primary font-semibold text-xs tracking-wide">🧙 Recruit an Agent Companion</div>
                         <div className="text-slate-500 text-xs leading-relaxed border-l-2 border-slate-200 pl-3">
-                            You are about to authorize your AI Agent to negotiate and sign transactions on your behalf using an Instant Session key.
+                            This lets the app negotiate and sign matched deals for you automatically, without asking each time.
+                            You can always undo this from Wallet → Erase all local data, or by restarting the app.
                         </div>
                     </div>
 
                     <div className="border-t border-slate-100" />
 
-                    {/* Delegation Limits */}
-                    <div className="space-y-4">
-                        <div className="text-slate-400 font-semibold text-xs tracking-wide mb-3">📊 Delegation Limits</div>
-
-                        <div className="grid grid-cols-2 gap-4 text-xs">
-                            <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-200 flex justify-between items-center text-slate-500">
-                                <span>Max Spending Limit</span>
-                                <span className="text-slate-900 font-semibold">5.00 AVAX</span>
-                            </div>
-                            <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-200 flex justify-between items-center text-slate-500">
-                                <span>Session Duration</span>
-                                <span className="text-slate-900 font-semibold">24 Hours</span>
-                            </div>
-                        </div>
-
-                        <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-200 text-xs flex justify-between items-center text-slate-500">
-                            <span>Allowed Protocols</span>
-                            <span className="text-nobody-primary font-semibold">Instant Session, Private Swap, Starpay</span>
-                        </div>
-                    </div>
-
-                    {/* Security Override */}
+                    {/* Real, current limits — no fabricated spending cap or protocol list */}
                     <div className="space-y-2">
-                        <div className="text-slate-400 font-semibold text-xs tracking-wide mb-2">🔒 Security Override</div>
-                        <div className="space-y-1.5 text-xs text-slate-500">
-                            <div className="flex items-center gap-2">
-                                <span className="text-nobody-primary">✓</span>
-                                <span>Auto-terminate session if Mesh connection is lost.</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-nobody-primary">✓</span>
-                                <span>Require Master Pass for transactions {">"} 1.0 AVAX.</span>
-                            </div>
+                        <div className="bg-slate-50 pixel-corners-sm p-3 border border-slate-200 text-xs flex justify-between items-center text-slate-500">
+                            <span>Session length</span>
+                            <span className="text-slate-900 font-semibold">1 hour</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 leading-relaxed">
+                            There's currently no separate spending cap on top of this — every real transaction (buying, releasing, refunding) still uses your same wallet and shows up in this app, matched deal by matched deal.
                         </div>
                     </div>
 
                     <div className="border-t border-slate-100" />
 
-                    {/* Delegation Status (Dynamic) */}
+                    {/* Delegation Status */}
                     <div className="bg-slate-50 pixel-corners-sm p-4 border border-slate-200 space-y-2 relative overflow-hidden">
-                        <div className="text-slate-400 font-semibold text-xs tracking-wide mb-2">⚙️ Delegation Status</div>
+                        <div className="text-slate-400 font-semibold text-xs tracking-wide mb-2">⚙️ Status</div>
 
-                        <ul className="text-xs space-y-1.5 text-slate-500">
-                            <li className="flex justify-between">
-                                <span>Generating Ephemeral Keypair...</span>
-                                <span className={progress >= 30 ? "text-nobody-primary font-medium" : "text-slate-300"}>{progress >= 30 ? "Done" : "..."}</span>
-                            </li>
-                            <li className="flex justify-between">
-                                <span>Initializing Instant Session...</span>
-                                <span className={progress >= 60 ? "text-nobody-primary font-medium" : "text-slate-300"}>{progress >= 60 ? "Ready" : "..."}</span>
-                            </li>
-                            <li className="flex justify-between">
-                                <span>Waiting for Owner Signature...</span>
-                                <span className={progress >= 100 ? "text-nobody-primary font-medium" : "text-slate-300"}>{progress >= 100 ? "Signed" : step === "signing" ? "Pending" : "Waiting"}</span>
-                            </li>
-                        </ul>
+                        <div className="flex justify-between items-center text-xs text-slate-500">
+                            <span>Agent session</span>
+                            <span className={progress >= 100 ? "text-nobody-primary font-medium" : "text-slate-300"}>
+                                {progress >= 100 ? "Active ✓" : step === "signing" ? "Signing..." : "Not started"}
+                            </span>
+                        </div>
 
                         <div className="mt-4 border-l-2 border-nobody-primary pl-3 py-1 text-xs text-slate-500">
-                            <span className="text-nobody-primary font-semibold">Agent:</span> "I will manage your intents within these bounds. Once authorized, I can trade even while you are away."
+                            <span className="text-nobody-primary font-semibold">Agent:</span> "Once authorized, I can match and lock funds for you even while you're away — you still confirm every release yourself."
                         </div>
                     </div>
 

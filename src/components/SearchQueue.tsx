@@ -45,7 +45,7 @@ export const SearchQueue: React.FC<SearchQueueProps> = ({ jobs, onDismiss }) => 
                         {job.status === "queued" && <span className="shrink-0">📡</span>}
 
                         <div className="flex-1 min-w-0">
-                            <div className="text-slate-900 font-medium truncate">"{job.intent}"</div>
+                            <div className="text-slate-900 font-medium truncate">🗺️ Quest: "{job.intent}"</div>
                             <div className="text-slate-400 text-[11px] truncate">{job.message}</div>
                         </div>
 

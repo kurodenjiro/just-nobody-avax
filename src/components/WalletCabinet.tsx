@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import { formatEther } from "ethers";
 import { PixelShieldIcon } from "./icons/PixelIcons";
+import { PixelClassIcon } from "./icons/PixelClassIcon";
 
 interface WalletCabinetProps {
     visible: boolean;
@@ -141,10 +142,11 @@ export const WalletCabinet: React.FC<WalletCabinetProps> = ({ visible, onClose, 
 
                     {/* Balance — the single most important number, given its own space */}
                     <div className="pixel-corners-sm bg-nobody-primary-soft/30 border border-nobody-primary/20 p-5 text-center">
-                        <div className="text-xs text-slate-500 mb-1">Your Balance</div>
+                        <div className="text-xs text-slate-500 mb-1">🎒 Your Gold</div>
                         <div className="text-3xl font-bold text-nobody-primary">{balanceText} AVAX</div>
                         {identity && (
-                            <div className="text-[11px] text-slate-400 font-mono mt-2">
+                            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-mono mt-2">
+                                <PixelClassIcon address={identity.address} size={14} />
                                 {identity.emoji || "👻"} {identity.address.slice(0, 10)}...{identity.address.slice(-8)}
                             </div>
                         )}
