@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -150,7 +150,6 @@ impl MeshNetwork {
                                 }
                             }
                             MeshBehaviourEvent::Gossipsub(gossipsub::Event::Message { message, .. }) => {
-                                self.relay_bytes.fetch_add(message.data.len() as u64, Ordering::Relaxed);
                                 // Try to parse as PrivacyIntent first
                                 let intent: Result<PrivacyIntent, _> = serde_json::from_slice(&message.data);
                                 if let Ok(intent) = intent {
@@ -263,14 +262,12 @@ impl MeshNetwork {
         }
 
         let payload = serde_json::to_vec(&intent)?;
-        let payload_len = payload.len() as u64;
         match self.swarm
             .behaviour_mut()
             .gossipsub
             .publish(self.topic.clone(), payload)
         {
             Ok(_) => {
-                self.relay_bytes.fetch_add(payload_len, Ordering::Relaxed);
                 println!("📤 Intent broadcasted to mesh (Relay Hop: {})", intent.relay_path.len());
                 Ok(())
             }

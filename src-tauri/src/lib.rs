@@ -201,6 +201,13 @@ async fn get_bridge_status(
 }
 
 #[tauri::command]
+async fn check_rpc_reachable(state: State<'_, Arc<Mutex<AppState>>>) -> Result<bool, String> {
+    let state = state.lock().await;
+    let bridge = state.bridge.lock().await;
+    Ok(bridge.check_rpc_reachable().await)
+}
+
+#[tauri::command]
 async fn get_wallet_snapshot(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<serde_json::Value, String> {
@@ -547,6 +554,21 @@ async fn get_relay_stats(
     Ok(state.relay_bytes.load(Ordering::Relaxed))
 }
 
+/// Credits this node's relay-stats counter — called only at the point a
+/// transaction is actually relayed on behalf of a peer (see
+/// RelayTxReceived handling in App.tsx). Not incremented by ordinary mesh
+/// chatter (presence, intent broadcasts, etc.), so it genuinely reflects
+/// "bytes relayed for someone else", not just "bytes this node has seen".
+#[tauri::command]
+async fn record_relay_bytes(
+    bytes: u64,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let state = state.lock().await;
+    state.relay_bytes.fetch_add(bytes, Ordering::Relaxed);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -672,6 +694,7 @@ pub fn run() {
             refund_escrow,
             get_escrow_status,
             get_bridge_status,
+            check_rpc_reachable,
             get_wallet_snapshot,
             delete_wallet_snapshot,
             app_initializer::kill_switch,
@@ -705,7 +728,8 @@ pub fn run() {
             receive_content,
             get_received_content,
             match_intent_to_listings,
-            get_relay_stats
+            get_relay_stats,
+            record_relay_bytes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
