@@ -8,6 +8,9 @@ interface RelayerStatusCompactProps {
     isRelaying: boolean;
     onToggle: (enabled: boolean) => void;
     peerCount?: number;
+    /** Transient status for the tx currently being (or just) relayed for a
+     * peer — shown as a small line under the bar, not just a passing toast. */
+    activity?: string | null;
 }
 
 interface RelayedTxRecord {
@@ -22,7 +25,7 @@ interface RelayedTxRecord {
  * stats are hidden behind an (i) info button as a popup instead of always
  * taking up space, so the outer screen stays uncluttered.
  */
-export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRelaying, onToggle, peerCount = 0 }) => {
+export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRelaying, onToggle, peerCount = 0, activity }) => {
     const [showInfo, setShowInfo] = useState(false);
     const { traffic, earnings, boostMultiplier } = useRelayStats(isRelaying);
     const activeConnections = Math.min(peerCount, 5);
@@ -62,6 +65,20 @@ export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRe
                 </button>
             </div>
 
+            {/* Always-visible, right under the bar — not hidden behind the (i) popup.
+             * The boost is a property of the wallet (from redeeming an item),
+             * so it shows regardless of whether Relay Mode is toggled on right now. */}
+            {(activity || boostMultiplier > 1) && (
+                <div className="mt-1 flex flex-col gap-0.5 text-[10px]">
+                    {activity && (
+                        <div className="text-slate-400 truncate max-w-[220px]" title={activity}>{activity}</div>
+                    )}
+                    {boostMultiplier > 1 && (
+                        <div className="text-nobody-gold font-semibold">⚡ Item Boost: {boostMultiplier.toFixed(2)}x</div>
+                    )}
+                </div>
+            )}
+
             <AnimatePresence>
                 {showInfo && (
                     <motion.div
@@ -74,9 +91,6 @@ export const RelayerStatusCompact: React.FC<RelayerStatusCompactProps> = ({ isRe
                             <div className="space-y-2">
                                 <div className="flex justify-between"><span className="text-slate-400">Data Processed</span><span className="text-nobody-primary font-mono font-semibold">{traffic}</span></div>
                                 <div className="flex justify-between"><span className="text-slate-400">Relay Earnings</span><span className="text-nobody-gold font-mono font-semibold">{earnings}</span></div>
-                                {boostMultiplier > 1 && (
-                                    <div className="flex justify-between"><span className="text-slate-400">⚡ Item Boost</span><span className="text-nobody-gold font-mono font-semibold">{boostMultiplier.toFixed(2)}x</span></div>
-                                )}
                                 <div className="flex justify-between"><span className="text-slate-400">Connections</span><span className="text-slate-900 font-semibold">{activeConnections}</span></div>
                             </div>
                         ) : (

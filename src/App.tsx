@@ -30,10 +30,28 @@ import { DelegationCenter } from "./components/DelegationCenter";
 // Types
 import { Peer, MeshEvent, ViewState, MatchResult, TxResult, QueuedTx, ContentRecord, DealView } from "./types";
 
+// Reward items handed out for real mesh-relay participation — reuses the
+// existing tradeable/usable voucher types (see ServiceCreator.tsx and the
+// relay-boost redeem flow in RedeemVoucher.tsx) rather than inventing a
+// separate "loot" item type. A real on-chain mint, same as any other
+// listing — just given away instead of paid for.
+const REWARD_ITEM_TYPES = ["AI Compute Credit", "Relay Bandwidth Credit"];
+
+async function mintRandomRewardItem(context: string): Promise<string | null> {
+    const voucherType = REWARD_ITEM_TYPES[Math.floor(Math.random() * REWARD_ITEM_TYPES.length)];
+    try {
+        await invoke<number>("mint_voucher", { voucherType, description: `🎁 ${context} reward` });
+        return voucherType;
+    } catch (e) {
+        console.error("Failed to mint reward item:", e);
+        return null;
+    }
+}
+
 function App() {
     const [intent, setIntent] = useState("");
     const [peers, setPeers] = useState<Peer[]>([]);
-    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [isOnline, setIsOnline] = useState(true);
     const aiReady = useOllamaStatus();
     const [showHint, setShowHint] = useState(() => localStorage.getItem("cabalmesh_seen_intent_hint") !== "1");
     const dismissHint = () => {
@@ -44,6 +62,14 @@ function App() {
     // UI State
     const [view, setView] = useState<ViewState>("nexus");
     const [notification, setNotification] = useState<string | null>(null);
+    // Shown right under the Relay Mode bar (not just as a passing toast) —
+    // the last relay-for-a-peer activity on this node.
+    const [relayActivity, setRelayActivity] = useState<string | null>(null);
+    useEffect(() => {
+        if (!relayActivity) return;
+        const timer = setTimeout(() => setRelayActivity(null), 15000);
+        return () => clearTimeout(timer);
+    }, [relayActivity]);
     // Tracks whether this node currently has any of its own intents in flight, so the
     // mesh-event listener (registered once) can ignore its own broadcast echoing back.
     // A ref (not state) because the listener's closure would otherwise see a stale value.
@@ -221,7 +247,7 @@ function App() {
                     return;
                 }
 
-                setNotification(`📡 Relaying a transaction for a peer: ${summary || "unknown"}...`);
+                setRelayActivity(`📡 Relaying for a peer: ${summary || "unknown"}...`);
 
                 try {
                     const txHash = await invoke<string>("submit_raw_transaction", { rawTxHex });
@@ -232,15 +258,22 @@ function App() {
 
                     // Real, persisted credit for helping — reward is a deterministic estimate
                     // (bytes relayed × the same rate Relay Mode's own stats use), not an actual payout.
-                    const rewardAvax = ((rawTxHex.replace(/^0x/, "").length / 2) * RATE_PER_BYTE_AVAX).toFixed(6);
+                    const byteCount = rawTxHex.replace(/^0x/, "").length / 2;
+                    const rewardAvax = (byteCount * RATE_PER_BYTE_AVAX).toFixed(6);
                     invoke("record_relayed_tx", { summary, txHash, rewardAvax }).catch(console.error);
-                    setNotification(`✅ Relayed "${summary || "a transaction"}" for a peer! (+${rewardAvax} AVAX est.)`);
+                    invoke("record_relay_bytes", { bytes: byteCount }).catch(console.error);
+
+                    const rewardItem = await mintRandomRewardItem("relay");
+                    setRelayActivity(
+                        `✅ Relayed "${summary || "a transaction"}" for a peer! (+${rewardAvax} AVAX est.)` +
+                        (rewardItem ? ` 🎁 +1 ${rewardItem}` : "")
+                    );
                 } catch (e) {
                     console.error("Failed to relay transaction:", e);
                     invoke("send_intent_to_mesh", {
                         payload: JSON.stringify({ type: "RelayConfirmed", queue_id: queueId, status: "failed" }),
                     }).catch(console.error);
-                    setNotification(`⚠️ Failed to relay "${summary || "a transaction"}" for a peer.`);
+                    setRelayActivity(`⚠️ Failed to relay "${summary || "a transaction"}" for a peer.`);
                 }
 
             } else if (meshEvent.type === "RelayConfirmed") {
@@ -249,8 +282,21 @@ function App() {
                 const txHash = meshEvent.tx_hash;
                 console.log("📨 RelayConfirmed:", queueId, status, txHash);
 
+                // This is a mesh-wide broadcast — every peer receives it, but only
+                // the node that actually originated this queued tx should act on
+                // it (mark_relay_tx_status/mint below are no-ops for everyone else
+                // since the id won't match anything in their own queue).
+                const isMine = offlineQueueRef.current.some((t) => t.id === queueId);
+
                 invoke("mark_relay_tx_status", { queueId, status, txHash: txHash ?? null }).catch(console.error);
                 setOfflineQueue((prev) => prev.map((t) => (t.id === queueId ? { ...t, status: status as QueuedTx["status"], tx_hash: txHash ?? null } : t)));
+
+                if (isMine && status === "confirmed") {
+                    const rewardItem = await mintRandomRewardItem("lucky trade");
+                    if (rewardItem) {
+                        setNotification(`🍀 Lucky drop! Your offline trade got relayed — +1 ${rewardItem}`);
+                    }
+                }
 
             } else if (meshEvent.type === "ContentRequested") {
                 const tokenId = meshEvent.token_id;
@@ -305,16 +351,22 @@ function App() {
             }
         });
 
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
-        window.addEventListener("online", handleOnline);
-        window.addEventListener("offline", handleOffline);
-
         return () => {
             unlisten.then((fn) => fn());
-            window.removeEventListener("online", handleOnline);
-            window.removeEventListener("offline", handleOffline);
         };
+    }, []);
+
+    // Real RPC reachability, not the OS/browser's local network interface flag
+    // (navigator.onLine stays "online" even when the actual RPC endpoint is
+    // unreachable) — this is what "offline" should mean for testing the
+    // offline-signing fallback.
+    useEffect(() => {
+        const check = () => {
+            invoke<boolean>("check_rpc_reachable").then(setIsOnline).catch(() => setIsOnline(false));
+        };
+        check();
+        const interval = setInterval(check, 8000);
+        return () => clearInterval(interval);
     }, []);
 
     const updateSearch = (id: number, patch: Partial<SearchJob>) => {
@@ -501,7 +553,7 @@ function App() {
                         </div>
                         <MenuButton label="🎒" onClick={() => setView("redeem")} active={false} color="nobody-gold" />
                         <div className="w-px self-stretch bg-slate-300/60 mx-1 hidden sm:block" />
-                        <RelayerStatusCompact isRelaying={isRelaying} onToggle={setIsRelaying} peerCount={peers.length} />
+                        <RelayerStatusCompact isRelaying={isRelaying} onToggle={setIsRelaying} peerCount={peers.length} activity={relayActivity} />
                         <WalletBalanceCompact onOpenWallet={() => setView("wallet-cabinet")} />
                     </div>
                 )}

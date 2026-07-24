@@ -309,6 +309,7 @@ impl BlockchainBridge {
     pub fn logout_identity(&mut self) -> Result<Vec<IdentityView>, Box<dyn Error>> {
         self.identities.clear();
         let _ = self.delete_snapshot();
+        let _ = fs::remove_file(&self.relay_boost_path);
         self.generate_new_identity("Genesis Fox".to_string(), "🦊".to_string())
     }
 
@@ -330,6 +331,7 @@ impl BlockchainBridge {
 
         self.identities = vec![IdentityRecord { alias, emoji, private_key_hex: normalized }];
         let _ = self.delete_snapshot();
+        let _ = fs::remove_file(&self.relay_boost_path);
         self.save_identities()?;
         self.get_identity_views()
     }
@@ -555,6 +557,16 @@ impl BlockchainBridge {
     }
 
     /// Syncs the native AVAX balance for the primary identity and saves an encrypted snapshot.
+    /// Real RPC reachability check (not the OS/browser's local network
+    /// interface flag, which stays "online" even when the actual RPC
+    /// endpoint is unreachable or the machine has no real route to it).
+    /// Cheap and short-timeout so it's safe to poll frequently.
+    pub async fn check_rpc_reachable(&self) -> bool {
+        let Ok(url) = self.rpc_url.parse() else { return false };
+        let provider = ProviderBuilder::new().connect_http(url);
+        matches!(timeout(Duration::from_secs(4), provider.get_block_number()).await, Ok(Ok(_)))
+    }
+
     pub async fn sync_state(&self, wallet_address_override: &str) -> Result<Snapshot, Box<dyn Error>> {
         let primary = self.get_primary_address();
         let target = if primary != "unknown" { primary } else { wallet_address_override.to_string() };
